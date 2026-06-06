@@ -340,7 +340,7 @@
     '80294','80295','80299',
     '80301','80302','80303','80304','80305','80310','80314',
     '80401','80402','80403','80419',
-    '80465','80401',
+    '80465',
     '80516','80601','80602','80603','80614','80640','80642','80643','80654']);
 
   function bZipVerify(){
@@ -432,7 +432,7 @@
     const sec=getSec('dismount');
     const cur=(selections[sec.id]||[])[0]?.option_id;
     const yesId=sec.options[0].id, noId=sec.options[1].id, yesOn=cur===yesId;
-    return `<h1 style="margin:0 0 10px 0!important;font-size:26px!important;font-weight:800!important;color:${INK}!important;display:block!important;line-height:1.2!important;">Removal Service</h1><p style="font-size:13px!important;color:${MUTE}!important;margin:0 0 14px 0!important;line-height:1.6!important;"><strong style="color:${INK}!important;">Thinking of upgrading your TV later?</strong> We offer <strong style="color:${BLUE}!important;">professional removal at no charge</strong> to our past mounting customers.</p><div style="background:#F7FAFC!important;border:1px solid ${LINE}!important;border-radius:10px!important;padding:14px!important;margin-bottom:12px!important;"><div style="font-size:14px!important;font-weight:700!important;color:${INK}!important;margin-bottom:10px!important;">What's Included</div>${['Professional TV removal when you upgrade','Wall patch & cleanup (no extra charge)'].map(t=>`<div style="display:flex!important;gap:8px!important;align-items:flex-start!important;font-size:13px!important;color:${MUTE}!important;margin-bottom:7px!important;"><span style="color:${BLUE}!important;font-size:15px!important;flex-shrink:0!important;">✔</span><span>${t}</span></div>`).join('')}</div><div style="display:grid!important;grid-template-columns:1fr 1fr 1fr!important;gap:8px!important;margin-bottom:14px!important;">${[['$35','Future Service'],['Expert','Removal'],['Included','Repairs']].map(c=>`<div style="background:#F7FAFC!important;border:1.5px solid ${BLUE}!important;border-radius:8px!important;padding:12px 6px!important;text-align:center!important;"><div style="font-size:18px!important;font-weight:800!important;color:${BLUE}!important;">${c[0]}</div><div style="font-size:10px!important;color:${MUTE}!important;margin-top:3px!important;">${c[1]}</div></div>`).join('')}</div><button id="btn-dis-yes" style="background:${yesOn?BLUE:BLUE}!important;opacity:${yesOn?'1':'0.9'}!important;color:#fff!important;border:${yesOn?'2px solid '+BLUE_DK:'none'}!important;padding:15px!important;border-radius:10px!important;font-size:15px!important;font-weight:700!important;cursor:pointer!important;width:100%!important;display:block!important;text-align:center!important;box-sizing:border-box!important;margin-bottom:10px!important;">${yesOn?'✓ ':''}Yes — Add Removal Service ($35)</button><div style="text-align:center!important;margin-bottom:8px!important;"><button id="btn-dis-no" style="background:${cur===noId?'#EDF1F5':'transparent'}!important;color:${cur===noId?INK:MUTE}!important;border:none!important;font-size:13px!important;cursor:pointer!important;text-decoration:underline!important;padding:8px 16px!important;">${cur===noId?'✓ ':''}Skip this for now</button></div><div style="${S.actions}"><button id="btn-prev" style="${S.btnSec}">← Back</button><button id="btn-next" style="${cur?S.btnPri:S.btnDis}" ${!cur?'disabled':''}>Continue →</button></div>`;
+    return `<h1 style="margin:0 0 10px 0!important;font-size:26px!important;font-weight:800!important;color:${INK}!important;display:block!important;line-height:1.2!important;">Removal Service</h1><p style="font-size:13px!important;color:${MUTE}!important;margin:0 0 14px 0!important;line-height:1.6!important;"><strong style="color:${INK}!important;">Thinking of upgrading your TV later?</strong> We offer <strong style="color:${BLUE}!important;">professional removal at no charge</strong> to our past mounting customers.</p><div style="background:#F7FAFC!important;border:1px solid ${LINE}!important;border-radius:10px!important;padding:14px!important;margin-bottom:12px!important;"><div style="font-size:14px!important;font-weight:700!important;color:${INK}!important;margin-bottom:10px!important;">What's Included</div>${['Professional TV removal when you upgrade','Wall patch & cleanup (no extra charge)'].map(t=>`<div style="display:flex!important;gap:8px!important;align-items:flex-start!important;font-size:13px!important;color:${MUTE}!important;margin-bottom:7px!important;"><span style="color:${BLUE}!important;font-size:15px!important;flex-shrink:0!important;">✔</span><span>${t}</span></div>`).join('')}</div><div style="display:grid!important;grid-template-columns:1fr 1fr 1fr!important;gap:8px!important;margin-bottom:14px!important;">${[['$35','Future Service'],['Expert','Removal'],['Included','Repairs']].map(c=>`<div style="background:#F7FAFC!important;border:1.5px solid ${BLUE}!important;border-radius:8px!important;padding:12px 6px!important;text-align:center!important;"><div style="font-size:18px!important;font-weight:800!important;color:${BLUE}!important;">${c[0]}</div><div style="font-size:10px!important;color:${MUTE}!important;margin-top:3px!important;">${c[1]}</div></div>`).join('')}</div><button id="btn-dis-yes" style="background:${BLUE}!important;opacity:${yesOn?'1':'0.9'}!important;color:#fff!important;border:${yesOn?'2px solid '+BLUE_DK:'none'}!important;padding:15px!important;border-radius:10px!important;font-size:15px!important;font-weight:700!important;cursor:pointer!important;width:100%!important;display:block!important;text-align:center!important;box-sizing:border-box!important;margin-bottom:10px!important;">${yesOn?'✓ ':''}Yes — Add Removal Service ($35)</button><div style="text-align:center!important;margin-bottom:8px!important;"><button id="btn-dis-no" style="background:${cur===noId?'#EDF1F5':'transparent'}!important;color:${cur===noId?INK:MUTE}!important;border:none!important;font-size:13px!important;cursor:pointer!important;text-decoration:underline!important;padding:8px 16px!important;">${cur===noId?'✓ ':''}Skip this for now</button></div><div style="${S.actions}"><button id="btn-prev" style="${S.btnSec}">← Back</button><button id="btn-next" style="${cur?S.btnPri:S.btnDis}" ${!cur?'disabled':''}>Continue →</button></div>`;
   }
 
   function bExtras(){
@@ -538,7 +538,6 @@
   }
 
   function fetchSlots(){
-    const tvSec=serviceConfig.sections.find(s=>s.stepKey==='size');
     const duration=Math.ceil((totalTVs()*90)/60)*60;
     fetch(`${API_BASE}/slots?territory_id=${TERRITORY_ID}&duration=${duration}&days=14`)
       .then(r=>r.json())
@@ -609,71 +608,3 @@
           phone:payload.customer.phone,
           address:payload.customer.address,
           city:payload.city,
-          state:payload.state,
-          zip:payload.customer.zip,
-          describe:describeText,
-          lines:[],
-          total:calcTotal(),
-          tip:tipAmount,
-          jobId:d.job_id||d.id,
-          ts:new Date().toISOString(),
-        };
-        if(kind==='booking'){
-          booking.dateISO=selectedDate;
-          const df=fmtDate(selectedDate);
-          booking.dateLong=`${df.long}, ${df.date}`;
-          const slot=slotsByDate[selectedDate]?.find(s=>s.id===selectedSlot);
-          booking.timeWindow=slot?.arrival_window||'';
-          for(const sec of TV.sections){
-            for(const sel of(selections[sec.id]||[])){
-              const opt=sec.options.find(o=>o.id===sel.option_id);
-              if(opt){
-                booking.lines.push({label:opt.label,qty:sel.quantity,price:opt.price,total:opt.price*sel.quantity});
-              }
-            }
-          }
-        }
-        localStorage.setItem('doms_booking',JSON.stringify(booking));
-        window.location.href=THANKYOU_URL;
-      })
-      .catch(e=>{
-        console.error('[widget] submit error:',e);
-        alert('Submission failed. Please try again.');
-      });
-  }
-
-  function ensureContainer(){
-    // Always create fresh outer wrapper (don't reuse existing elements)
-    let existing=document.getElementById('doms-widget-outer');
-    if(existing)return document.getElementById(TARGET_ID);
-    
-    const outer=document.createElement('div');
-    outer.id='doms-widget-outer';
-    outer.style.cssText=`display:flex!important;justify-content:center!important;width:100%!important;padding:20px!important;`;
-    
-    const inner=document.createElement('div');
-    inner.id=TARGET_ID;
-    inner.style.cssText=`max-width:580px!important;width:100%!important;`;
-    
-    outer.appendChild(inner);
-    const target=document.querySelector('body')||document.documentElement;
-    target.appendChild(outer);
-    
-    return inner;
-  }
-
-  function boot(){
-    const link=document.createElement('link');
-    link.rel='stylesheet';
-    link.href='https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap';
-    document.head.appendChild(link);
-    if(document.readyState==='loading'){
-      document.addEventListener('DOMContentLoaded',()=>{ensureContainer();render();});
-    }else{
-      ensureContainer();
-      render();
-    }
-  }
-
-  boot();
-})();
