@@ -3,608 +3,87 @@
  * Denver only. Three services: TV Mounting (bookable), Handyman (request),
  * Home Theater (quote request). Light theme, slate-blue brand.
  */
-(function () {
-  'use strict';
-
-  const API_BASE     = 'https://doms-tv-mounting.vercel.app/api';
-  const TARGET_ID    = 'doms-widget';
-  const STRIPE_KEY   = 'pk_live_51SaLliBcfV1Ql8vm145iBKNLVv5TVxisWTkWaUl3LrHPBJMGVEnIhGlfuBEnWHf7ElWQ5jL8EoxSowqWTqKvGGJA00OLp7jIAG';
-  const THANKYOU_URL = 'https://www.domstvmounting.com/thank-you';
-  const TERRITORY_ID = '1764781142653x839348760756411600';
-  const LOCATION     = { city: 'Denver', state: 'CO' };
-
-  const TV = {
-    service_id: '1764781543375x970898546217713700',
-    frameBracketSectionId: '1764781695979x983922491612725200',
-    frameBracketOptionId:  '1764781794581x623799211951128600',
-    oneConnectSectionId:   '1764782250840x158482009487573000',
-    oneConnectOptionId:    '1764782250840x266842303435112450',
-    sections: [
-      {
-        stepKey:'size', id:'1764781594789x590144354618966000',
-        title:'What size is your TV?', subtitle:'Tap + to add each TV you want mounted.',
-        type:'qty_multi', required:true,
-        options:[
-          {id:'1764781594789x318721355074764800',label:'32" Or Less',price:95, sizecat:'small'},
-          {id:'1764781624346x760390952972976100',label:'33"–59"',    price:115,sizecat:'small'},
-          {id:'1764781641055x142375876391862270',label:'60"–69"',    price:125,sizecat:'small'},
-          {id:'1764781654525x578089275773681700',label:'70"–84"',    price:145,sizecat:'medium'},
-          {id:'1764781660924x702639599859793900',label:'85"–97"',    price:180,sizecat:'medium'},
-          {id:'1764781681218x409141618447220740',label:'98"+',       price:240,sizecat:'large'},
-        ]
-      },
-      {
-        stepKey:'bracket', id:'1764781695979x983922491612725200',
-        title:'Should we bring a mounting bracket for your TV?', subtitle:'',
-        type:'qty_match', required:true,
-        options:[
-          {id:'1764781695979x585351672630607900',label:'I have my own bracket',                       price:0,  forSize:'any'},
-          {id:'1764781724913x667945483404312600',label:'Flat',                                        price:50, forSize:'standard'},
-          {id:'1764781740844x374872284807036900',label:'Tilting (recommended)',                       price:60, forSize:'standard'},
-          {id:'1764781758821x396301420113952800',label:'Full Motion',                                 price:110,forSize:'standard'},
-          {id:'1764781773911x692295442051891200',label:'Install customer-supplied Mantel Mount',      price:195,forSize:'standard'},
-          {id:'1764781794581x623799211951128600',label:'Use the bracket in the box (Samsung Frame TV)',price:30, forSize:'frame'},
-        ]
-      },
-      {
-        stepKey:'fireplace', id:'1764781821695x832550806309306400',
-        title:'How many TVs are above a fireplace?',
-        subtitle:'Built-in fireplaces only. Electric wall-mounted fireplaces do not count.',
-        type:'qty_multi', required:true, enforceTVCount:true,
-        options:[
-          {id:'1764781821695x630871999156846600',label:'I have 1 TV not over a fireplace',price:0},
-          {id:'1764781843025x870286046585684000',label:'I have 1 TV above a fireplace',   price:30},
-        ]
-      },
-      {
-        stepKey:'surface', id:'1764781965027x112029962514726910',
-        title:'What type of surface will the TV be mounted to?',
-        subtitle:'Metal studs (found in high-rises over 5 stories) are no extra charge.',
-        type:'qty_multi', required:false, enforceTVCount:true,
-        options:[
-          {id:'1764781965027x673354826810130400',label:'Drywall',             price:0, isDrywall:true},
-          {id:'1764781987737x423735091930857500',label:'Brick / Stone',        price:35},
-          {id:'1764782050919x142418167765401600',label:'Uneven Stone or Tile', price:50},
-          {id:'1764782067149x819906368310345700',label:'Outdoor / Stucco',     price:45},
-        ]
-      },
-      {
-        stepKey:'wires', id:'1764781866356x469229623157456900',
-        title:'Would you like to hide the wires?',
-        subtitle:'Select one per TV if needed.',
-        type:'qty_multi', required:false,
-        options:[
-          {id:'1764781866356x438486166961913860',label:'Yes, hide the wires BEHIND the wall', price:75,needsDrywall:true},
-          {id:'1764781906084x341563416629477400',label:'Yes, hide the wires OUTSIDE the wall', price:25},
-          {id:'1764781916398x653623231273500700',label:'My wall already has a plug behind the TV',price:0,hideForFrame:true},
-          {id:'1764781930302x564364127584649200',label:'I want my wires to hang under the TV',  price:0},
-        ]
-      },
-      {
-        stepKey:'lifting', id:'1764782088936x324396603514552300',
-        title:'TV Size & Lifting', subtitle:'',
-        type:'single_select', required:true,
-        options:[
-          {id:'1764782088936x256465061194235900',label:'My TV is under 70 inches',                        price:0, forCat:'small'},
-          {id:'1764782113636x102636028242952200',label:'My TV is 70–85 inches and I can help lift it',    price:0, forCat:'medium'},
-          {id:'1764782128214x566028847520153600',label:'My TV is 70–85 inches and I cannot help lift it', price:70,forCat:'medium'},
-          {id:'1764782163472x384097097839018000',label:'My TV is 86 inches or larger',                    price:70,forCat:'large'},
-        ]
-      },
-      {
-        stepKey:'dismount', id:'1764782188853x511586073383272450',
-        title:'Removal Service', subtitle:'',
-        type:'single_select', required:true,
-        options:[
-          {id:'1764782188853x808798292635025400',label:'Guaranteed Dismount Service',       price:35},
-          {id:'1764782211660x555988338401083400',label:"No, I'll handle TV removal myself", price:0},
-        ]
-      },
-      {
-        stepKey:'extras', id:'1764782250840x158482009487573000',
-        title:'Anything else?', subtitle:'Optional add-ons.',
-        type:'qty_multi', required:false,
-        options:[
-          {id:'1764782250840x266842303435112450',label:'Install Samsung Frame OneConnect box behind the TV',price:350,frameOnly:true},
-          {id:'1764782279505x271635817643376640',label:'Apple TV installation, mounting bracket included',  price:25},
-          {id:'1764782290711x970982184191000600',label:'Soundbar Installation',                             price:50},
-          {id:'1764782309911x896006087691206700',label:'Install shelf under TV',                            price:45},
-          {id:'1764782317800x921128088064491500',label:'LED Lights',                                        price:50},
-          {id:'1764782333235x217237333436530700',label:'Handyman Labor (per hour)',                         price:85, allowText:true},
-          {id:'1764782349563x143330046980390910',label:'Other',                                             price:0,  allowText:true},
-        ]
-      },
-      {
-        stepKey:'terms', id:'1764782372085x850770250964140000',
-        title:'Terms of Service',
-        subtitle:"Our technician will help determine the best TV mounting height during installation, but ultimately it's up to you. If you need adjustments after the technician leaves, there'll be an extra charge. You can reschedule anytime unless within 24 hours of your appointment. Cancellations within 24 hours incur a $50 fee.",
-        type:'terms', required:true,
-        options:[{id:'1764782372085x351986086320275460',label:'I agree to the Terms of Service',price:0}]
-      },
-    ]
-  };
-
-  const QUOTES = {
-    handyman: {
-      service_id:'1772707009158x823589363475393000',
-      sectionId:'1772707013465x669829422049330800',
-      title:'Tell us what you need help with',
-      sub:'Describe your project — the more detail you give, the better we can help.',
-      placeholder:'Example: Patch a 4-inch hole in the hallway, assemble an IKEA dresser, hang 3 shelves and a mirror…',
-      cta:'Request My Handyman',
-    },
-    hometheater: {
-      service_id:'1779489954923x916667929316261400',
-      sectionId:'1779489955060x690368666785430000',
-      title:'Tell us about your home theater project',
-      sub:'Share what you have and what you want installed. The more detail, the better the quote.',
-      placeholder:'Example: I have a projector, a 120-inch screen, and a 7.1 surround system I need installed and calibrated…',
-      cta:'Request My Quote',
-    },
-  };
-
-  const FLOWS = {
-    tv:          ['frame_tv','size','bracket','fireplace','surface','wires','lifting','dismount','extras','terms','slots','customer'],
-    handyman:    ['describe','customer'],
-    hometheater: ['describe','customer'],
-  };
-
-  let selectedService=null;
-  let zipVerified=false;
-  let serviceConfig=null;
-  let stepIdx=0, isFrameTV=false;
-  let selections={}, selectedSlot=null;
-  let slotsByDate={}, selectedDate=null, calYear=null, calMonth=null;
-  let describeText='';
-  let customer={first_name:'',last_name:'',email:'',phone:'',address:'',zip:''};
-  let tipAmount=0;
-  let optionComments={};
-  let _stripe=null,_stripeElements=null,_stripeCard=null;
-
-  const BLUE='#0047AB', BLUE_DK='#003580', TINT='#EEF5FB';
-  const INK='#334455', MUTE='#777777', LINE='#D6DEE7', BLUE_LIGHT='#5199E4';
-
-  function flowSteps(){
-    let steps=['zip_verify'];
-    if(zipVerified) steps.push('service');
-    if(selectedService) steps.push(...(FLOWS[selectedService]||[]));
-    return steps;
-  }
-  function getSec(k){ return serviceConfig?.sections.find(s=>s.stepKey===k); }
-  function getQty(sid,oid){ return(selections[sid]||[]).find(x=>x.option_id===oid)?.quantity||0; }
-  function setQty(sid,oid,q){
-    if(!selections[sid])selections[sid]=[];
-    const i=selections[sid].findIndex(x=>x.option_id===oid);
-    if(q<=0){if(i!==-1)selections[sid].splice(i,1);}
-    else if(i!==-1)selections[sid][i].quantity=q;
-    else selections[sid].push({option_id:oid,quantity:q});
-  }
-  function toggleOpt(sid,oid){setQty(sid,oid,getQty(sid,oid)>0?0:1);}
-  function selectOnly(sid,oid){selections[sid]=[{option_id:oid,quantity:1}];}
-
-  function getMaxSizeCat(){
-    const sec=getSec('size'); if(!sec)return 'small';
-    const sels=selections[sec.id]||[];
-    for(const s of sels){if(sec.options.find(o=>o.id===s.option_id)?.sizecat==='large')return 'large';}
-    for(const s of sels){if(sec.options.find(o=>o.id===s.option_id)?.sizecat==='medium')return 'medium';}
-    return 'small';
-  }
-  function hasRegularTV(){
-    return !((selections['__frame_type']||[]).length) || (selections['__frame_type']||[]).includes('regular');
-  }
-  function totalTVs(){
-    const sec=getSec('size'); if(!sec)return 0;
-    return(selections[sec.id]||[]).reduce((s,x)=>s+x.quantity,0);
-  }
-  function hasDrywall(){
-    const sec=getSec('surface'); if(!sec)return true;
-    const sels=selections[sec.id]||[]; if(!sels.length)return true;
-    const did=sec.options.find(o=>o.isDrywall)?.id;
-    return sels.some(s=>s.option_id===did&&s.quantity>0);
-  }
-  function canHideBehindWall(){ return hasDrywall(); }
-
-  function shouldSkip(k){
-    if(k==='bracket'){
-      const onlyFrame=isFrameTV&&!(selections['__frame_type']||[]).includes('regular');
-      if(onlyFrame)return true;
-    }
-    if(k==='lifting'){
-      const cat=getMaxSizeCat();
-      if(cat==='small')return true;
-      if(cat==='large')return true;
-    }
-    return false;
-  }
-  const HIDDEN_STEPS=new Set(['zip_verify','service']);
-  function visibleStepNum(){let n=0;const fs=flowSteps();for(let i=0;i<=stepIdx;i++){if(!HIDDEN_STEPS.has(fs[i])&&!shouldSkip(fs[i]))n++;}return n;}
-  function totalVisibleSteps(){let n=0;const fs=flowSteps();for(let i=0;i<fs.length;i++){if(!HIDDEN_STEPS.has(fs[i])&&!shouldSkip(fs[i]))n++;}return n;}
-
-  function fmtDate(ds){
-    const d=new Date(ds+'T12:00:00');
-    const dn=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-    const mn=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    return{short:dn[d.getDay()],long:['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][d.getDay()],date:`${mn[d.getMonth()]} ${d.getDate()}`};
-  }
-  function calcTotal(){
-    if(!serviceConfig)return 0;
-    let sum=0;
-    for(const sec of serviceConfig.sections)
-      for(const sel of(selections[sec.id]||[])){
-        const opt=sec.options.find(o=>o.id===sel.option_id);
-        if(opt)sum+=(opt.price||0)*sel.quantity;
-      }
-    return sum;
-  }
-
-  function ensureStripe(){
-    return new Promise(resolve=>{
-      if(_stripe){resolve();return;}
-      if(!STRIPE_KEY||/REPLACE_ME/.test(STRIPE_KEY)||!/^pk_/.test(STRIPE_KEY)){resolve();return;}
-      function init(){
-        try{
-          _stripe=window.Stripe(STRIPE_KEY);
-          _stripeElements=_stripe.elements();
-          _stripeCard=_stripeElements.create('card',{
-            style:{base:{color:INK,fontFamily:'-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif',fontSize:'15px','::placeholder':{color:'#9AA7B4'}},invalid:{color:'#E53E3E'}},
-            hidePostalCode:true,
-          });
-        }catch(e){_stripe=null;}
-        resolve();
-      }
-      if(window.Stripe){init();return;}
-      const s=document.createElement('script');
-      s.src='https://js.stripe.com/v3/';s.onload=init;s.onerror=()=>resolve();
-      document.head.appendChild(s);
-    });
-  }
-  function mountStripeCard(){
-    const el=document.getElementById('stripe-card-element');
-    if(!el)return;
-    if(_stripeCard){_stripeCard.mount(el);}
-    else{el.innerHTML=`<div style="color:${MUTE}!important;font-size:13px!important;">Card entry will appear here once your Stripe key is set.</div>`;}
-  }
-
-  const S={
-    host:`display:block!important;visibility:visible!important;position:relative!important;z-index:999999!important;background:#fff!important;border:1px solid ${LINE}!important;border-radius:14px!important;padding:28px!important;box-shadow:0 12px 34px rgba(33,74,110,0.10)!important;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif!important;box-sizing:border-box!important;color:${INK}!important;`,
-    bar:`background:${LINE}!important;height:6px!important;border-radius:3px!important;margin-bottom:16px!important;overflow:hidden!important;display:block!important;`,
-    fill:p=>`background:${BLUE}!important;height:100%!important;width:${p}%!important;display:block!important;transition:width .3s!important;`,
-    step:`color:${MUTE}!important;font-size:12px!important;text-transform:uppercase!important;letter-spacing:1px!important;display:block!important;margin-bottom:18px!important;`,
-    h1:`margin:0 0 8px 0!important;font-size:22px!important;font-weight:800!important;color:${INK}!important;display:block!important;line-height:1.3!important;`,
-    sub:`color:${MUTE}!important;font-size:13px!important;display:block!important;margin-bottom:16px!important;line-height:1.5!important;`,
-    input:`width:100%!important;padding:14px 16px!important;background:#F7FAFC!important;border:1px solid ${LINE}!important;color:${INK}!important;border-radius:8px!important;font-size:17px!important;box-sizing:border-box!important;margin-bottom:20px!important;display:block!important;text-align:center!important;`,
-    inputL:`width:100%!important;padding:11px 14px!important;background:#F7FAFC!important;border:1px solid ${LINE}!important;color:${INK}!important;border-radius:6px!important;font-size:15px!important;box-sizing:border-box!important;margin-bottom:12px!important;display:block!important;`,
-    btnPri:`background:${BLUE}!important;color:#fff!important;border:none!important;padding:13px 26px!important;font-size:15px!important;font-weight:700!important;border-radius:8px!important;cursor:pointer!important;display:inline-block!important;`,
-    btnSec:`background:transparent!important;color:${MUTE}!important;border:1px solid ${LINE}!important;padding:10px 20px!important;font-size:14px!important;border-radius:6px!important;cursor:pointer!important;display:inline-block!important;`,
-    btnDis:`background:#EDF1F5!important;color:#A7B3BE!important;border:none!important;padding:13px 26px!important;font-size:15px!important;font-weight:700!important;border-radius:8px!important;cursor:not-allowed!important;display:inline-block!important;`,
-    actions:'display:flex!important;justify-content:space-between!important;align-items:center!important;margin-top:20px!important;',
-    card:on=>`background:${on?TINT:'#fff'}!important;border:1.5px solid ${on?BLUE:LINE}!important;border-radius:8px!important;padding:13px 15px!important;color:${INK}!important;display:flex!important;align-items:center!important;justify-content:space-between!important;margin-bottom:8px!important;font-size:14px!important;cursor:pointer!important;`,
-    qRow:on=>`background:${on?TINT:'#fff'}!important;border:1.5px solid ${on?BLUE:LINE}!important;border-radius:8px!important;padding:11px 14px!important;color:${INK}!important;display:flex!important;align-items:center!important;margin-bottom:8px!important;font-size:14px!important;`,
-    qBtn:`background:${TINT}!important;color:${BLUE_DK}!important;border:1px solid ${LINE}!important;width:30px!important;height:30px!important;border-radius:6px!important;font-size:18px!important;cursor:pointer!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;flex-shrink:0!important;`,
-    qNum:`color:${BLUE}!important;font-weight:700!important;font-size:17px!important;min-width:22px!important;text-align:center!important;display:inline-block!important;`,
-    info:`background:${TINT}!important;border:1px solid ${BLUE}!important;border-radius:7px!important;padding:10px 14px!important;margin-bottom:14px!important;font-size:13px!important;color:${BLUE_DK}!important;display:block!important;`,
-    ok:`background:#D6E8F7!important;border:1px solid ${BLUE_LIGHT}!important;border-radius:7px!important;padding:10px 14px!important;margin-bottom:14px!important;font-size:13px!important;color:${BLUE_DK}!important;display:block!important;`,
-    price:p=>p>0?` <span style="color:${MUTE}!important;font-size:12px!important;">(+$${p})</span>`:'',
-  };
-
-  function render(){
-    const root=document.getElementById(TARGET_ID); if(!root)return;
-    root.style.cssText=S.host;
-    const key=flowSteps()[stepIdx];
-    let prog='';
-    if(key!=='zip_verify'&&key!=='service'){
-      const pct=Math.round(visibleStepNum()/totalVisibleSteps()*100);
-      prog=`<div style="${S.bar}"><div style="${S.fill(pct)}"></div></div><div style="${S.step}">Step ${visibleStepNum()} of ${totalVisibleSteps()}</div>`;
-    }
-    let body='';
-    switch(key){
-      case 'zip_verify': body=bZipVerify(); break;
-      case 'service':  body=bService();  break;
-      case 'describe': body=bDescribe();  break;
-      case 'frame_tv': body=bFrameTV();   break;
-      case 'size':     body=bSize();      break;
-      case 'bracket':  body=bBracket();   break;
-      case 'fireplace':body=bGeneric(getSec('fireplace')); break;
-      case 'surface':  body=bGeneric(getSec('surface'));   break;
-      case 'wires':    body=bWires();     break;
-      case 'lifting':  body=bLifting();   break;
-      case 'dismount': body=bDismount();  break;
-      case 'extras':   body=bExtras();    break;
-      case 'terms':    body=bTerms();     break;
-      case 'slots':    body=bSlots();     break;
-      case 'customer': body=bCustomer();  break;
-    }
-    root.innerHTML=prog+body;
-    wire(root);
-    if(key==='customer'&&selectedService==='tv')ensureStripe().then(mountStripeCard);
-  }
-
-  const DENVER_ZIPS=new Set(['80001','80002','80003','80004','80005','80006','80007',
-    '80010','80011','80012','80013','80014','80015','80016','80017','80018','80019',
-    '80020','80021','80022','80023','80024','80025','80026','80027','80030','80031',
-    '80033','80034','80035','80036','80037','80038',
-    '80040','80041','80042','80044','80045','80046','80047',
-    '80101','80102','80103','80104','80105','80106','80107','80108','80109',
-    '80110','80111','80112','80113','80116','80117','80118','80120','80121',
-    '80122','80123','80124','80125','80126','80127','80128','80129','80130',
-    '80134','80135','80136','80137','80138',
-    '80150','80151','80155','80160','80161','80162','80163','80165','80166',
-    '80201','80202','80203','80204','80205','80206','80207','80208','80209',
-    '80210','80211','80212','80214','80215','80216','80217','80218','80219',
-    '80220','80221','80222','80223','80224','80225','80226','80227','80228',
-    '80229','80230','80231','80232','80233','80234','80235','80236','80237',
-    '80238','80239','80240','80241','80242','80243','80244','80246','80247',
-    '80248','80249','80250','80251','80252','80256','80257','80259','80260',
-    '80261','80262','80263','80264','80265','80266','80270','80271','80273',
-    '80274','80275','80279','80280','80281','80282','80290','80291','80293',
-    '80294','80295','80299',
-    '80301','80302','80303','80304','80305','80310','80314',
-    '80401','80402','80403','80419',
-    '80465',
-    '80516','80601','80602','80603','80614','80640','80642','80643','80654']);
-
-  function bZipVerify(){
-    const zip=customer.zip||'';
-    const isValid=/^\d{5}$/.test(zip);
-    const inArea=isValid&&DENVER_ZIPS.has(zip);
-    const notInArea=isValid&&!inArea;
-    return `<h1 style="${S.h1};font-size:24px!important;">Do we service your area?</h1><input type="text" id="verify-zip" style="${S.input};margin-top:16px!important;" placeholder="ZIP Code" maxlength="5" inputmode="numeric" value="${zip}" autocomplete="postal-code"><div id="zip-msg" style="min-height:40px!important;margin-bottom:8px!important;">${notInArea?`<div style="background:#FFE5E5!important;border:1px solid #FF9999!important;border-radius:8px!important;padding:12px!important;font-size:13px!important;color:#C53030!important;"><strong>Outside our service area.</strong> We currently serve Denver &amp; the surrounding metro.</div>`:''}${inArea?`<div style="background:#D6E8F7!important;border:1px solid ${BLUE_LIGHT}!important;border-radius:8px!important;padding:12px!important;font-size:13px!important;color:${BLUE_DK}!important;"><strong>&#10003; Great news!</strong> We service your area.</div>`:''}</div><div style="text-align:center!important;"><button id="btn-verify-zip" style="${inArea?S.btnPri:S.btnDis}" ${!inArea?'disabled':''}>Continue &#8594;</button></div>`;
-  }
-
-  function bService(){
-    const ICON_TV=`<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="${BLUE}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>`;
-    const ICON_HM=`<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="${BLUE}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2-2 2.6-2.6z"/></svg>`;
-    const ICON_HT=`<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="${BLUE}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="12" rx="2"/><circle cx="8" cy="10" r="2.3"/><circle cx="16" cy="10" r="2.3"/><line x1="6" y1="20" x2="18" y2="20"/></svg>`;
-    const cardCss=`text-align:left!important;border:none!important;border-radius:10px!important;padding:18px 16px!important;margin-bottom:12px!important;cursor:pointer!important;display:flex!important;align-items:center!important;gap:16px!important;background:#F5F9FF!important;transition:all .2s!important;`;
-    const iconWrap=`width:50px!important;height:50px!important;border-radius:12px!important;background:${TINT}!important;display:flex!important;align-items:center!important;justify-content:center!important;flex-shrink:0!important;border:2px solid ${BLUE}!important;`;
-    const tName=`font-size:16px!important;font-weight:700!important;color:${INK}!important;display:block!important;margin-bottom:2px!important;`;
-    const tDesc=`font-size:13px!important;color:${MUTE}!important;display:block!important;line-height:1.5!important;`;
-    const arrow=`margin-left:auto!important;color:${BLUE}!important;font-size:24px!important;font-weight:600!important;flex-shrink:0!important;`;
-    return `<h1 style="${S.h1};font-size:24px!important;">Choose Your Service</h1><p style="${S.sub}">Select what you need and we'll get you set up</p><div class="dom-svc" data-svc="tv" style="${cardCss}"><span style="${iconWrap}">${ICON_TV}</span><span><span style="${tName}">📺 TV Mounting</span><span style="${tDesc}">Book instantly &amp; pick your time</span></span><span style="${arrow}">›</span></div><div class="dom-svc" data-svc="handyman" style="${cardCss}"><span style="${iconWrap}">${ICON_HM}</span><span><span style="${tName}">🔧 Handyman</span><span style="${tDesc}">Request a custom quote</span></span><span style="${arrow}">›</span></div><div class="dom-svc" data-svc="hometheater" style="${cardCss}"><span style="${iconWrap}">${ICON_HT}</span><span><span style="${tName}">🎬 Home Theater</span><span style="${tDesc}">Get your setup quote</span></span><span style="${arrow}">›</span></div><div style="margin-top:20px!important;"><button id="btn-back-zip" style="${S.btnSec}">← Change ZIP</button></div>`;
-  }
-
-  function bDescribe(){
-    const q=QUOTES[selectedService]; if(!q)return '';
-    const ok=describeText.trim().length>0;
-    return `<h1 style="${S.h1}">${q.title}</h1><p style="${S.sub}">${q.sub}</p><textarea id="dom-describe" rows="6" style="width:100%!important;padding:14px!important;background:#F7FAFC!important;border:1.5px solid ${ok?BLUE:LINE}!important;color:${INK}!important;border-radius:10px!important;font-size:15px!important;box-sizing:border-box!important;resize:vertical!important;font-family:inherit!important;line-height:1.5!important;margin-bottom:6px!important;" placeholder="${q.placeholder}">${describeText.replace(/</g,'&lt;')}</textarea><p style="font-size:12px!important;color:${MUTE}!important;margin:0 0 4px 0!important;">No payment now — we'll review and follow up with next steps.</p><div style="${S.actions}"><button id="btn-prev" style="${S.btnSec}">← Back</button><button id="btn-next" style="${ok?S.btnPri:S.btnDis}" ${!ok?'disabled':''}>Continue →</button></div>`;
-  }
-
-  function bFrameTV(){
-    const frameOn=(selections['__frame_type']||[]).includes('frame');
-    const regOn=(selections['__frame_type']||[]).includes('regular');
-    const any=frameOn||regOn;
-    return `<h1 style="${S.h1}">What kind of TV do you have?</h1><p style="${S.sub}">Select each TV type you're mounting. Smart frame TVs like Samsung Frame and LG Gallery come with their own bracket.</p><div class="dom-tv-type" data-type="frame" style="${S.card(frameOn)}"><span>Samsung FrameTV or LG Gallery</span><span style="color:${frameOn?BLUE:'#A7B3BE'}!important;font-size:18px!important;">${frameOn?'✓':'☐'}</span></div><div class="dom-tv-type" data-type="regular" style="${S.card(regOn)}"><span>Traditional TV</span><span style="color:${regOn?BLUE:'#A7B3BE'}!important;font-size:18px!important;">${regOn?'✓':'☐'}</span></div><div style="${S.actions}"><button id="btn-prev" style="${S.btnSec}">← Back</button><button id="btn-next" style="${any?S.btnPri:S.btnDis}" ${!any?'disabled':''}>Continue →</button></div>`;
-  }
-
-  function bSize(){
-    const sec=getSec('size');
-    const opts=sec.options.map(o=>{const q=getQty(sec.id,o.id);return `<div style="${S.qRow(q>0)}"><span style="flex:1!important;">${o.label}${S.price(o.price)}</span><div style="display:flex!important;align-items:center!important;gap:8px!important;flex-shrink:0!important;"><button class="dom-dec" data-s="${sec.id}" data-o="${o.id}" style="${S.qBtn}">−</button><span style="${S.qNum}">${q}</span><button class="dom-inc" data-s="${sec.id}" data-o="${o.id}" style="${S.qBtn}">+</button></div></div>`;}).join('');
-    const ok=totalTVs()>0;
-    return `<h1 style="${S.h1}">${sec.title}</h1><p style="${S.sub}">${sec.subtitle}</p>${opts}<div style="${S.actions}"><button id="btn-prev" style="${S.btnSec}">← Back</button><button id="btn-next" style="${ok?S.btnPri:S.btnDis}" ${!ok?'disabled':''}>Continue →</button></div>`;
-  }
-
-  function bBracket(){
-    const sec=getSec('bracket');
-    const tvs=totalTVs(), brks=(selections[sec.id]||[]).reduce((s,x)=>s+x.quantity,0);
-    const reg=hasRegularTV();
-    const visible=sec.options.filter(o=>{if(o.forSize==='frame')return isFrameTV;if(o.forSize==='any')return reg;if(o.forSize==='standard')return reg;return true;});
-    const banner=brks<tvs?`<div style="${S.info}">📺 You have <strong>${tvs} TV${tvs>1?'s':''}</strong> — select <strong>${tvs-brks}</strong> more bracket${tvs-brks>1?'s':''}.</div>`:`<div style="${S.ok}">✓ All ${tvs} TV${tvs>1?'s':''} have a bracket assigned.</div>`;
-    const opts=visible.map(o=>{const q=getQty(sec.id,o.id);return `<div style="${S.qRow(q>0)}"><span style="flex:1!important;">${o.label}${S.price(o.price)}</span><div style="display:flex!important;align-items:center!important;gap:8px!important;flex-shrink:0!important;"><button class="dom-dec" data-s="${sec.id}" data-o="${o.id}" style="${S.qBtn}">−</button><span style="${S.qNum}">${q}</span><button class="dom-inc" data-s="${sec.id}" data-o="${o.id}" style="${S.qBtn}">+</button></div></div>`;}).join('');
-    const ok=brks===tvs&&tvs>0;
-    return `<h1 style="${S.h1}">${sec.title}</h1><p style="${S.sub}">You have ${tvs} TV${tvs>1?'s':''} — select ${tvs} bracket${tvs>1?'s':''} total.</p>${banner}${opts}<div style="${S.actions}"><button id="btn-prev" style="${S.btnSec}">← Back</button><button id="btn-next" style="${ok?S.btnPri:S.btnDis}" ${!ok?'disabled':''}>Continue →</button></div>`;
-  }
-
-  function bGeneric(sec){
-    if(!sec)return '';
-    const tvs=totalTVs();
-    const total=(selections[sec.id]||[]).reduce((s,x)=>s+x.quantity,0);
-    let banner='';
-    if(sec.enforceTVCount&&tvs>0){banner=total<tvs?`<div style="${S.info}">📺 You have <strong>${tvs} TV${tvs>1?'s':''}</strong> — select options totalling ${tvs} (${total} of ${tvs} done).</div>`:`<div style="${S.ok}">✓ All ${tvs} TV${tvs>1?'s':''} accounted for.</div>`;}
-    const optsHtml=sec.options.map(o=>{const q=getQty(sec.id,o.id);return `<div style="${S.qRow(q>0)}"><span style="flex:1!important;">${o.label}${S.price(o.price)}</span><div style="display:flex!important;align-items:center!important;gap:8px!important;flex-shrink:0!important;"><button class="dom-dec" data-s="${sec.id}" data-o="${o.id}" style="${S.qBtn}">−</button><span style="${S.qNum}">${q}</span><button class="dom-inc" data-s="${sec.id}" data-o="${o.id}" style="${S.qBtn}">+</button></div></div>`;}).join('');
-    const countOk=sec.enforceTVCount?(tvs===0||total===tvs):true;
-    const ok=(!sec.required||total>0)&&countOk;
-    return `<h1 style="${S.h1}">${sec.title}</h1><p style="${S.sub}">${sec.subtitle}</p>${banner}${optsHtml}<div style="${S.actions}"><button id="btn-prev" style="${S.btnSec}">← Back</button><button id="btn-next" style="${ok?S.btnPri:S.btnDis}" ${!ok?'disabled':''}>Continue →</button></div>`;
-  }
-
-  function bWires(){
-    const sec=getSec('wires');
-    const tvs=totalTVs();
-    const visibleOpts=sec.options.filter(o=>{if(o.needsDrywall&&!canHideBehindWall())return false;if(o.hideForFrame&&isFrameTV)return false;return true;});
-    if(isFrameTV&&hasDrywall()){visibleOpts.push({id:serviceConfig.oneConnectOptionId,label:'Install Samsung Frame OneConnect box behind the TV',price:350,_altSection:serviceConfig.oneConnectSectionId});}
-    const wireTotal=(selections[sec.id]||[]).reduce((s,x)=>s+x.quantity,0);
-    const wireBanner=tvs>0?(wireTotal<tvs?`<div style="${S.info}">📺 You have <strong>${tvs} TV${tvs>1?'s':''}</strong> — select a wire option for each (${wireTotal} of ${tvs} done).</div>`:`<div style="${S.ok}">✓ All ${tvs} TV${tvs>1?'s':''} have a wire option.</div>`):'';
-    const opts=visibleOpts.map(o=>{const sid=o._altSection||sec.id;const q=getQty(sid,o.id);return `<div style="${S.qRow(q>0)}"><span style="flex:1!important;">${o.label}${S.price(o.price)}</span><div style="display:flex!important;align-items:center!important;gap:8px!important;flex-shrink:0!important;"><button class="dom-dec" data-s="${sid}" data-o="${o.id}" style="${S.qBtn}">−</button><span style="${S.qNum}">${q}</span><button class="dom-inc" data-s="${sid}" data-o="${o.id}" style="${S.qBtn}">+</button></div></div>`;}).join('');
-    const wireOk=tvs===0||wireTotal===tvs;
-    return `<h1 style="${S.h1}">${sec.title}</h1><p style="${S.sub}">Select one per TV.</p>${wireBanner}${opts}<div style="${S.actions}"><button id="btn-prev" style="${S.btnSec}">← Back</button><button id="btn-next" style="${wireOk?S.btnPri:S.btnDis}" ${!wireOk?'disabled':''}>Continue →</button></div>`;
-  }
-
-  function bLifting(){
-    const sec=getSec('lifting');
-    const medOpts=sec.options.filter(o=>o.forCat==='medium');
-    const cur=(selections[sec.id]||[])[0]?.option_id;
-    const LIFT={'1764782113636x102636028242952200':'I can help lift the TV into place','1764782128214x566028847520153600':'I cannot help lift the TV into place'};
-    const opts=medOpts.map(o=>{const on=cur===o.id;return `<div class="dom-sel" data-s="${sec.id}" data-o="${o.id}" style="${S.card(on)}"><span>${LIFT[o.id]||o.label}${S.price(o.price)}</span><span style="color:${on?BLUE:'#A7B3BE'}!important;font-size:18px!important;">${on?'●':'○'}</span></div>`;}).join('');
-    const ok=!!cur;
-    return `<h1 style="${S.h1}">Can you help us lift the TV?</h1><p style="${S.sub}">One or more of your TVs is in the 70–85" range. Can you assist the technician lifting it onto the bracket?</p>${opts}<div style="${S.actions}"><button id="btn-prev" style="${S.btnSec}">← Back</button><button id="btn-next" style="${ok?S.btnPri:S.btnDis}" ${!ok?'disabled':''}>Continue →</button></div>`;
-  }
-
-  function bDismount(){
-    const sec=getSec('dismount');
-    const cur=(selections[sec.id]||[])[0]?.option_id;
-    const yesId=sec.options[0].id, noId=sec.options[1].id, yesOn=cur===yesId;
-    return `<h1 style="margin:0 0 10px 0!important;font-size:26px!important;font-weight:800!important;color:${INK}!important;display:block!important;line-height:1.2!important;">Removal Service</h1><p style="font-size:13px!important;color:${MUTE}!important;margin:0 0 14px 0!important;line-height:1.6!important;"><strong style="color:${INK}!important;">Thinking of upgrading your TV later?</strong> We offer <strong style="color:${BLUE}!important;">professional removal at no charge</strong> to our past mounting customers.</p><div style="background:#F7FAFC!important;border:1px solid ${LINE}!important;border-radius:10px!important;padding:14px!important;margin-bottom:12px!important;"><div style="font-size:14px!important;font-weight:700!important;color:${INK}!important;margin-bottom:10px!important;">What's Included</div>${['Professional TV removal when you upgrade','Wall patch & cleanup (no extra charge)'].map(t=>`<div style="display:flex!important;gap:8px!important;align-items:flex-start!important;font-size:13px!important;color:${MUTE}!important;margin-bottom:7px!important;"><span style="color:${BLUE}!important;font-size:15px!important;flex-shrink:0!important;">✔</span><span>${t}</span></div>`).join('')}</div><div style="display:grid!important;grid-template-columns:1fr 1fr 1fr!important;gap:8px!important;margin-bottom:14px!important;">${[['$35','Future Service'],['Expert','Removal'],['Included','Repairs']].map(c=>`<div style="background:#F7FAFC!important;border:1.5px solid ${BLUE}!important;border-radius:8px!important;padding:12px 6px!important;text-align:center!important;"><div style="font-size:18px!important;font-weight:800!important;color:${BLUE}!important;">${c[0]}</div><div style="font-size:10px!important;color:${MUTE}!important;margin-top:3px!important;">${c[1]}</div></div>`).join('')}</div><button id="btn-dis-yes" style="background:${BLUE}!important;opacity:${yesOn?'1':'0.9'}!important;color:#fff!important;border:${yesOn?'2px solid '+BLUE_DK:'none'}!important;padding:15px!important;border-radius:10px!important;font-size:15px!important;font-weight:700!important;cursor:pointer!important;width:100%!important;display:block!important;text-align:center!important;box-sizing:border-box!important;margin-bottom:10px!important;">${yesOn?'✓ ':''}Yes — Add Removal Service ($35)</button><div style="text-align:center!important;margin-bottom:8px!important;"><button id="btn-dis-no" style="background:${cur===noId?'#EDF1F5':'transparent'}!important;color:${cur===noId?INK:MUTE}!important;border:none!important;font-size:13px!important;cursor:pointer!important;text-decoration:underline!important;padding:8px 16px!important;">${cur===noId?'✓ ':''}Skip this for now</button></div><div style="${S.actions}"><button id="btn-prev" style="${S.btnSec}">← Back</button><button id="btn-next" style="${cur?S.btnPri:S.btnDis}" ${!cur?'disabled':''}>Continue →</button></div>`;
-  }
-
-  function bExtras(){
-    const sec=getSec('extras');
-    const visible=sec.options.filter(o=>!o.frameOnly);
-    const opts=visible.map(o=>{const q=getQty(sec.id,o.id);const row=`<div style="${S.qRow(q>0)}"><span style="flex:1!important;">${o.label}${S.price(o.price)}</span><div style="display:flex!important;align-items:center!important;gap:8px!important;flex-shrink:0!important;"><button class="dom-dec" data-s="${sec.id}" data-o="${o.id}" style="${S.qBtn}">−</button><span style="${S.qNum}">${q}</span><button class="dom-inc" data-s="${sec.id}" data-o="${o.id}" style="${S.qBtn}">+</button></div></div>`;const showText=o.allowText&&q>0;const ph=/Other/i.test(o.label)?'e.g. I also need some curtains hung…':'Tell us what you need the handyman for…';const textBox=showText?`<div style="margin:-2px 0 10px 0!important;"><textarea class="dom-comment" data-o="${o.id}" rows="2" style="width:100%!important;padding:10px 12px!important;background:#F7FAFC!important;border:1px solid ${BLUE}!important;color:${INK}!important;border-radius:6px!important;font-size:14px!important;box-sizing:border-box!important;resize:vertical!important;font-family:inherit!important;" placeholder="${ph}">${(optionComments[o.id]||'').replace(/</g,'&lt;')}</textarea></div>`:'';return row+textBox;}).join('');
-    return `<h1 style="${S.h1}">${sec.title}</h1><p style="${S.sub}">${sec.subtitle}</p>${opts}<div style="${S.actions}"><button id="btn-prev" style="${S.btnSec}">← Back</button><button id="btn-next" style="${S.btnPri}">Continue →</button></div>`;
-  }
-
-  function bTerms(){
-    const sec=getSec('terms');
-    const agreed=(selections[sec.id]||[])[0]?.option_id===sec.options[0].id;
-    return `<h1 style="${S.h1}">${sec.title}</h1><div style="background:#F7FAFC!important;border:1px solid ${LINE}!important;border-radius:8px!important;padding:16px!important;margin-bottom:20px!important;font-size:13px!important;color:${MUTE}!important;line-height:1.7!important;max-height:130px!important;overflow-y:auto!important;">${sec.subtitle}</div><div style="display:flex!important;justify-content:center!important;margin-bottom:20px!important;"><div class="dom-sel" data-s="${sec.id}" data-o="${sec.options[0].id}" style="background:${agreed?'#D6E8F7':'#fff'}!important;border:1.5px solid ${agreed?BLUE_LIGHT:LINE}!important;border-radius:8px!important;padding:12px 24px!important;color:${INK}!important;display:inline-flex!important;align-items:center!important;gap:10px!important;font-size:14px!important;cursor:pointer!important;"><span style="font-size:20px!important;">${agreed?'☑':'☐'}</span><span>${sec.options[0].label}</span></div></div><div style="${S.actions}"><button id="btn-prev" style="${S.btnSec}">← Back</button><button id="btn-next" style="${agreed?S.btnPri:S.btnDis}" ${!agreed?'disabled':''}>Continue →</button></div>`;
-  }
-
-  function bSlots(){
-    const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
-    const DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-    const allDates=Object.keys(slotsByDate).sort();
-    if(!allDates.length){return `<h1 style="${S.h1}">What day works best for you?</h1><p style="color:${MUTE}!important;font-size:14px!important;margin-bottom:16px!important;">Loading available dates…</p><div style="${S.actions}"><button id="btn-prev" style="${S.btnSec}">← Back</button></div>`;}
-    if(calYear===null){const f=new Date(allDates[0]+'T12:00:00');calYear=f.getFullYear();calMonth=f.getMonth();}
-    const availSet=new Set(allDates);
-    const firstDay=new Date(calYear,calMonth,1).getDay();
-    const daysInMonth=new Date(calYear,calMonth+1,0).getDate();
-    const todayStr=new Date().toISOString().slice(0,10);
-    const firstAvail=new Date(allDates[0]+'T12:00:00');
-    const lastAvail=new Date(allDates[allDates.length-1]+'T12:00:00');
-    const canPrev=calYear>firstAvail.getFullYear()||(calYear===firstAvail.getFullYear()&&calMonth>firstAvail.getMonth());
-    const canNext=calYear<lastAvail.getFullYear()||(calYear===lastAvail.getFullYear()&&calMonth<lastAvail.getMonth());
-    const dayHdr=DAYS.map(d=>`<div style="text-align:center!important;font-size:11px!important;font-weight:600!important;color:${MUTE}!important;padding:4px 0 8px 0!important;">${d}</div>`).join('');
-    let cells='';
-    for(let i=0;i<firstDay;i++)cells+='<div></div>';
-    for(let d=1;d<=daysInMonth;d++){
-      const ds=`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-      const has=availSet.has(ds),isSel=selectedDate===ds,isToday=ds===todayStr;
-      if(has){cells+=`<div class="dom-date" data-date="${ds}" style="text-align:center!important;cursor:pointer!important;padding:4px 2px!important;border-radius:8px!important;background:${isSel?TINT:'transparent'}!important;"><div style="width:32px!important;height:32px!important;border-radius:50%!important;margin:0 auto!important;display:flex!important;align-items:center!important;justify-content:center!important;background:${isSel?BLUE:isToday?TINT:'transparent'}!important;font-size:14px!important;font-weight:${isSel||isToday?700:400}!important;color:${isSel?'#fff':isToday?BLUE:INK}!important;border:${isToday&&!isSel?'1.5px solid '+BLUE:'none'}!important;">${d}</div></div>`;}else{cells+=`<div style="text-align:center!important;padding:4px 2px!important;"><div style="width:32px!important;height:32px!important;margin:0 auto!important;display:flex!important;align-items:center!important;justify-content:center!important;font-size:14px!important;color:#C2CCD6!important;">${d}</div></div>`;}
-    }
-    let timeHtml='';
-    if(selectedDate&&slotsByDate[selectedDate]){
-      const df=fmtDate(selectedDate);
-      const slotBtns=slotsByDate[selectedDate].map(sl=>{const on=selectedSlot===sl.id;return `<div class="dom-slot" data-id="${sl.id}" style="background:${on?TINT:'#fff'}!important;border:1.5px solid ${on?BLUE:LINE}!important;border-radius:8px!important;padding:14px 10px!important;cursor:pointer!important;text-align:center!important;"><div style="font-size:13px!important;font-weight:600!important;color:${INK}!important;">${sl.arrival_window}</div></div>`;}).join('');
-      timeHtml=`<div style="border-top:1px solid ${LINE}!important;margin-top:12px!important;padding-top:12px!important;"><p style="font-size:13px!important;color:${MUTE}!important;margin:0 0 10px 0!important;">${df.long}, ${df.date} — select a time:</p><div style="display:grid!important;grid-template-columns:1fr 1fr!important;gap:8px!important;">${slotBtns}</div></div>`;
-    }
-    return `<h1 style="${S.h1}">What day works best for you?</h1><div style="background:#fff!important;border:1px solid ${LINE}!important;border-radius:10px!important;padding:14px!important;margin-bottom:14px!important;"><div style="display:flex!important;align-items:center!important;justify-content:space-between!important;margin-bottom:10px!important;"><button id="cal-prev" style="background:transparent!important;border:1px solid ${LINE}!important;color:${canPrev?BLUE:'#C2CCD6'}!important;width:30px!important;height:30px!important;border-radius:50%!important;cursor:${canPrev?'pointer':'default'}!important;font-size:16px!important;display:flex!important;align-items:center!important;justify-content:center!important;" ${!canPrev?'disabled':''}>‹</button><span style="font-size:15px!important;font-weight:700!important;color:${INK}!important;">${MONTHS[calMonth]} ${calYear}</span><button id="cal-next" style="background:transparent!important;border:1px solid ${LINE}!important;color:${canNext?BLUE:'#C2CCD6'}!important;width:30px!important;height:30px!important;border-radius:50%!important;cursor:${canNext?'pointer':'default'}!important;font-size:16px!important;display:flex!important;align-items:center!important;justify-content:center!important;" ${!canNext?'disabled':''}>›</button></div><div style="display:grid!important;grid-template-columns:repeat(7,1fr)!important;">${dayHdr}</div><div style="display:grid!important;grid-template-columns:repeat(7,1fr)!important;">${cells}</div>${timeHtml}</div><div style="${S.actions}"><button id="btn-prev" style="${S.btnSec}">← Back</button><button id="btn-next" style="${selectedSlot?S.btnPri:S.btnDis}" ${!selectedSlot?'disabled':''}>Continue →</button></div>`;
-  }
-
-  function bCustomer(){
-    const isTV=selectedService==='tv';
-    const fields=`<input type="text"  id="c-fn" style="${S.inputL}" placeholder="First Name"     value="${customer.first_name}"><input type="text"  id="c-ln" style="${S.inputL}" placeholder="Last Name"      value="${customer.last_name}"><input type="email" id="c-em" style="${S.inputL}" placeholder="Email Address"  value="${customer.email}"><input type="tel"   id="c-ph" style="${S.inputL}" placeholder="Phone Number"   value="${customer.phone}"><input type="text"  id="c-ad" style="${S.inputL}" placeholder="Street Address" value="${customer.address}"><input type="text"  id="c-zip" style="${S.inputL}" placeholder="ZIP" maxlength="5" inputmode="numeric" value="${customer.zip}">`;
-    if(!isTV){
-      const q=QUOTES[selectedService];
-      return `<h1 style="${S.h1};color:${BLUE}!important;">Last step — your contact info</h1><p style="${S.sub}">We'll use this to follow up about your ${selectedService==='handyman'?'handyman request':'home theater quote'}.</p>${fields}<div style="background:${TINT}!important;border:1px solid ${BLUE}!important;border-radius:10px!important;padding:14px 16px!important;margin:6px 0 18px 0!important;font-size:13px!important;color:${BLUE_DK}!important;line-height:1.6!important;">✅ <strong>No payment now.</strong> We'll review your details and reach out shortly with next steps.</div><div style="${S.actions}"><button id="btn-prev" style="${S.btnSec}">← Back</button><button id="btn-submit" style="${S.btnPri}">${q.cta} ✓</button></div>`;
-    }
-    const tips=[0,5,10,15,20];
-    const tipHtml=tips.map(t=>`<button class="dom-tip" data-tip="${t}" style="background:${tipAmount===t?BLUE:'#fff'}!important;color:${tipAmount===t?'#fff':INK}!important;border:1.5px solid ${tipAmount===t?BLUE:LINE}!important;border-radius:6px!important;padding:8px 14px!important;font-size:14px!important;cursor:pointer!important;flex:1!important;">${t===0?'No Tip':`$${t}`}</button>`).join('');
-    return `<h1 style="${S.h1};color:${BLUE}!important;">Almost done! Last step…</h1><div style="background:#D6E8F7!important;border:1px solid ${BLUE_LIGHT}!important;border-radius:8px!important;padding:12px 14px!important;margin-bottom:18px!important;font-size:12px!important;color:${MUTE}!important;line-height:1.6!important;">💳 <strong style="color:${INK}!important;">Your card will not be charged until after the job is complete.</strong> Payment is taken at time of service by the technician. Your card only holds the appointment.</div>${fields}<div style="background:#fff!important;border:1px solid ${LINE}!important;border-radius:8px!important;padding:14px!important;margin-bottom:14px!important;"><div style="font-size:11px!important;color:${MUTE}!important;margin-bottom:12px!important;font-weight:600!important;text-transform:uppercase!important;letter-spacing:0.5px!important;">💳 Card to Hold Appointment</div><div id="stripe-card-element" style="background:#F7FAFC!important;border:1px solid ${LINE}!important;border-radius:6px!important;padding:14px!important;min-height:44px!important;"></div><p style="font-size:11px!important;color:#8A97A4!important;margin:8px 0 0 0!important;">🔒 Secured by Stripe. Payment collected by technician at time of service.</p></div><div style="margin-bottom:14px!important;"><div style="font-size:13px!important;color:${MUTE}!important;margin-bottom:8px!important;">Tip your technician (optional)</div><div style="display:flex!important;gap:6px!important;">${tipHtml}</div></div><div style="background:#D6E8F7!important;border:1.5px solid ${BLUE_LIGHT}!important;border-radius:10px!important;padding:16px 18px!important;margin-bottom:18px!important;"><div style="display:flex!important;align-items:center!important;justify-content:space-between!important;margin-bottom:8px!important;"><div style="font-size:14px!important;font-weight:700!important;color:${INK}!important;">Your estimated total</div><div style="font-size:26px!important;font-weight:800!important;color:${BLUE}!important;">$${calcTotal()}</div></div><div style="font-size:12px!important;color:${MUTE}!important;line-height:1.6!important;">Taxes &amp; adjustments applied at checkout.<br>You can add or remove services with the technician at the time of the appointment.</div></div><div style="${S.actions}"><button id="btn-prev" style="${S.btnSec}">← Back</button><button id="btn-submit" style="${S.btnPri}">Complete My Booking ✓</button></div>`;
-  }
-
-  function wire(root){
-    root.querySelectorAll('.dom-svc').forEach(c=>c.addEventListener('click',()=>{selectedService=c.dataset.svc;serviceConfig=selectedService==='tv'?TV:null;goNext();}));
-    root.querySelector('#btn-prev')?.addEventListener('click',()=>goBack());
-    root.querySelector('#btn-next')?.addEventListener('click',()=>goNext());
-    root.querySelector('#btn-submit')?.addEventListener('click',()=>doSubmit(root));
-    root.querySelector('#btn-verify-zip')?.addEventListener('click',()=>{if(DENVER_ZIPS.has(customer.zip)){zipVerified=true;stepIdx=0;goNext();}});
-    root.querySelector('#btn-back-zip')?.addEventListener('click',()=>{zipVerified=false;stepIdx=0;render();});
-    root.querySelector('#cal-prev')?.addEventListener('click',()=>{calMonth--;if(calMonth<0){calMonth=11;calYear--;}render();});
-    root.querySelector('#cal-next')?.addEventListener('click',()=>{calMonth++;if(calMonth>11){calMonth=0;calYear++;}render();});
-    root.querySelector('#btn-dis-yes')?.addEventListener('click',()=>{const s=getSec('dismount');if(s)selectOnly(s.id,s.options[0].id);render();});
-    root.querySelector('#btn-dis-no')?.addEventListener('click',()=>{const s=getSec('dismount');if(s)selectOnly(s.id,s.options[1].id);render();});
-    const ta=root.querySelector('#dom-describe');
-    if(ta)ta.addEventListener('input',e=>{describeText=e.target.value;const nb=root.querySelector('#btn-next'), on=describeText.trim().length>0;if(nb){nb.disabled=!on;nb.style.cssText=on?S.btnPri:S.btnDis;}e.target.style.borderColor=on?BLUE:LINE;});
-    root.querySelectorAll('.dom-tv-type').forEach(c=>c.addEventListener('click',()=>{const type=c.dataset.type;if(!selections['__frame_type'])selections['__frame_type']=[];const idx=selections['__frame_type'].indexOf(type);if(idx!==-1)selections['__frame_type'].splice(idx,1);else selections['__frame_type'].push(type);isFrameTV=selections['__frame_type'].includes('frame');const onlyFrame=isFrameTV&&!selections['__frame_type'].includes('regular');setQty(serviceConfig.frameBracketSectionId,serviceConfig.frameBracketOptionId,onlyFrame?(totalTVs()||1):0);render();}));
-    root.querySelectorAll('.dom-inc').forEach(b=>b.addEventListener('click',e=>{const s=b.dataset.s, o=b.dataset.o;setQty(s,o,getQty(s,o)+1);render();}));
-    root.querySelectorAll('.dom-dec').forEach(b=>b.addEventListener('click',e=>{const s=b.dataset.s, o=b.dataset.o;const q=getQty(s,o); if(q>0)setQty(s,o,q-1);render();}));
-    root.querySelectorAll('.dom-sel').forEach(c=>c.addEventListener('click',()=>{const s=c.dataset.s, o=c.dataset.o;selectOnly(s,o);render();}));
-    root.querySelectorAll('.dom-date').forEach(c=>c.addEventListener('click',()=>{selectedDate=c.dataset.date;selectedSlot=null;render();}));
-    root.querySelectorAll('.dom-slot').forEach(c=>c.addEventListener('click',()=>{selectedSlot=c.dataset.id;render();}));
-    root.querySelectorAll('.dom-tip').forEach(b=>b.addEventListener('click',()=>{tipAmount=parseInt(b.dataset.tip);render();}));
-    root.querySelectorAll('.dom-comment').forEach(ta=>ta.addEventListener('input',e=>{optionComments[e.target.dataset.o]=e.target.value;}));
-    root.querySelectorAll('input').forEach(inp=>{
-      if(inp.id==='verify-zip'){inp.addEventListener('input',e=>{customer.zip=e.target.value.replace(/\D/g,'');const isValid=/^\d{5}$/.test(customer.zip);const inArea=isValid&&DENVER_ZIPS.has(customer.zip);const btn=root.querySelector('#btn-verify-zip');if(btn){btn.disabled=!inArea;btn.style.cssText=inArea?S.btnPri:S.btnDis;}render();});}
-      else if(inp.id==='c-fn') inp.addEventListener('input',e=>{customer.first_name=e.target.value;});
-      else if(inp.id==='c-ln') inp.addEventListener('input',e=>{customer.last_name=e.target.value;});
-      else if(inp.id==='c-em') inp.addEventListener('input',e=>{customer.email=e.target.value;});
-      else if(inp.id==='c-ph') inp.addEventListener('input',e=>{customer.phone=e.target.value;});
-      else if(inp.id==='c-ad') inp.addEventListener('input',e=>{customer.address=e.target.value;});
-      else if(inp.id==='c-zip') inp.addEventListener('input',e=>{customer.zip=e.target.value.replace(/\D/g,'');});
-    });
-  }
-
-  function goNext(){
-    const steps=flowSteps();
-    do{ stepIdx++; }while(stepIdx<steps.length&&shouldSkip(steps[stepIdx]));
-    if(stepIdx>=steps.length) return;
-    if(steps[stepIdx]==='slots') fetchSlots();
-    render();
-  }
-  function goBack(){
-    const steps=flowSteps();
-    do{ stepIdx--; }while(stepIdx>=0&&shouldSkip(steps[stepIdx]));
-    if(stepIdx<0) stepIdx=0;
-    render();
-  }
-
-  function fetchSlots(){
-    const duration=Math.ceil((totalTVs()*90)/60)*60;
-    fetch(`${API_BASE}/slots?territory_id=${TERRITORY_ID}&duration=${duration}&days=14`)
-      .then(r=>r.json())
-      .then(d=>{
-        slotsByDate={};
-        if(d.days){
-          for(const day of d.days){
-            if(day.date&&day.timeslots){
-              slotsByDate[day.date]=day.timeslots.map(t=>({id:t.id,arrival_window:t.arrival_window}));
-            }
-          }
-        }
-        render();
-      })
-      .catch(e=>{console.error('[widget] fetchSlots error:',e);render();});
-  }
-
-  function doSubmit(root){
-    const fnEl=root.querySelector('#c-fn'), fn=(fnEl?.value||'').trim();
-    const emEl=root.querySelector('#c-em'), em=(emEl?.value||'').trim();
-    const phEl=root.querySelector('#c-ph'), ph=(phEl?.value||'').trim();
-    const adEl=root.querySelector('#c-ad'), ad=(adEl?.value||'').trim();
-    if(!fn||!em||!ph||!ad){alert('Please fill in all fields.');return;}
-    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){alert('Invalid email.');return;}
-    const zbk_selections=[];
-    for(const sid in selections){
-      if(sid.startsWith('__')) continue;
-      for(const sel of selections[sid]){
-        const opt={option_id:sel.option_id,quantity:sel.quantity};
-        if(optionComments[sel.option_id])opt.comment=optionComments[sel.option_id];
-        zbk_selections.push(opt);
-      }
-    }
-    const kind=selectedService==='tv'?'booking':'quote';
-    const payload={
-      kind,
-      territory_id:TERRITORY_ID,
-      service_id:selectedService==='tv'?TV.service_id:QUOTES[selectedService].service_id,
-      selectedSlot:selectedService==='tv'?selectedSlot:null,
-      customer:{first_name:fn,last_name:(root.querySelector('#c-ln')?.value||'').trim(),email:em,phone:ph,address:ad,zip:customer.zip},
-      city:LOCATION.city,
-      state:LOCATION.state,
-      zbk_selections,
-    };
-    if(selectedService==='tv'&&_stripe&&_stripeCard){
-      _stripe.createPaymentMethod({type:'card',card:_stripeCard}).then(r=>{
-        if(r.error){alert('Card error: '+r.error.message);return;}
-        payload.payment_method_id=r.paymentMethod.id;
-        submitToAPI(payload);
-      }).catch(e=>{alert('Card processing failed.');});
-    }else{
-      submitToAPI(payload);
-    }
-  }
-
-  function submitToAPI(payload){
-    fetch(`${API_BASE}/book`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
-      .then(r=>r.json())
-      .then(d=>{
-        if(!d.success&&d.error){alert('Booking failed: '+(d.error||'Unknown error'));return;}
-        const kind=payload.kind;
-        const booking={
-          kind,
-          service:selectedService,
-          firstName:payload.customer.first_name,
-          name:`${payload.customer.first_name} ${payload.customer.last_name}`,
-          email:payload.customer.email,
-          phone:payload.customer.phone,
-          address:payload.customer.address,
-          city:payload.city,
+(function(){
+'use strict';
+const API_BASE='https://doms-tv-mounting.vercel.app/api';
+const TARGET_ID='doms-widget';
+const STRIPE_KEY='pk_live_51SaLliBcfV1Ql8vm145iBKNLVv5TVxisWTkWaUl3LrHPBJMGVEnIhGlfuBEnWHf7ElWQ5jL8EoxSowqWTqKvGGJA00OLp7jIAG';
+const THANKYOU_URL='https://www.domstvmounting.com/thank-you';
+const TERRITORY_ID='1764781142653x839348760756411600';
+const LOCATION={city:'Denver',state:'CO'};
+const TV={
+service_id:'1764781543375x970898546217713700',
+frameBracketSectionId:'1764781695979x983922491612725200',
+frameBracketOptionId:'1764781794581x623799211951128600',
+oneConnectSectionId:'1764782250840x158482009487573000',
+oneConnectOptionId:'1764782250840x266842303435112450',
+sections:[
+{stepKey:'size',id:'1764781594789x590144354618966000',title:'What size is your TV?',subtitle:'Tap + to add each TV you want mounted.',type:'qty_multi',required:true,options:[{id:'1764781594789x318721355074764800',label:'32" Or Less',price:95,sizecat:'small'},{id:'1764781624346x760390952972976100',label:'33"–59"',price:115,sizecat:'small'},{id:'1764781641055x142375876391862270',label:'60"–69"',price:125,sizecat:'small'},{id:'1764781654525x578089275773681700',label:'70"–84"',price:145,sizecat:'medium'},{id:'1764781660924x702639599859793900',label:'85"–97"',price:180,sizecat:'medium'},{id:'1764781681218x409141618447220740',label:'98"+',price:240,sizecat:'large'}]},
+{stepKey:'bracket',id:'1764781695979x983922491612725200',title:'Should we bring a mounting bracket for your TV?',subtitle:'',type:'qty_match',required:true,options:[{id:'1764781695979x585351672630607900',label:'I have my own bracket',price:0,forSize:'any'},{id:'1764781724913x667945483404312600',label:'Flat',price:50,forSize:'standard'},{id:'1764781740844x374872284807036900',label:'Tilting (recommended)',price:60,forSize:'standard'},{id:'1764781758821x396301420113952800',label:'Full Motion',price:110,forSize:'standard'},{id:'1764781773911x692295442051891200',label:'Install customer-supplied Mantel Mount',price:195,forSize:'standard'},{id:'1764781794581x623799211951128600',label:'Use the bracket in the box (Samsung Frame TV)',price:30,forSize:'frame'}]},
+{stepKey:'fireplace',id:'1764781821695x832550806309306400',title:'How many TVs are above a fireplace?',subtitle:'Built-in fireplaces only. Electric wall-mounted fireplaces do not count.',type:'qty_multi',required:true,enforceTVCount:true,options:[{id:'1764781821695x630871999156846600',label:'I have 1 TV not over a fireplace',price:0},{id:'1764781843025x870286046585684000',label:'I have 1 TV above a fireplace',price:30}]},
+{stepKey:'surface',id:'1764781965027x112029962514726910',title:'What type of surface will the TV be mounted to?',subtitle:'Metal studs (found in high-rises over 5 stories) are no extra charge.',type:'qty_multi',required:false,enforceTVCount:true,options:[{id:'1764781965027x673354826810130400',label:'Drywall',price:0,isDrywall:true},{id:'1764781987737x423735091930857500',label:'Brick / Stone',price:35},{id:'1764782050919x142418167765401600',label:'Uneven Stone or Tile',price:50},{id:'1764782067149x819906368310345700',label:'Outdoor / Stucco',price:45}]},
+{stepKey:'wires',id:'1764781866356x469229623157456900',title:'Would you like to hide the wires?',subtitle:'Select one per TV if needed.',type:'qty_multi',required:false,options:[{id:'1764781866356x438486166961913860',label:'Yes, hide the wires BEHIND the wall',price:75,needsDrywall:true},{id:'1764781906084x341563416629477400',label:'Yes, hide the wires OUTSIDE the wall',price:25},{id:'1764781916398x653623231273500700',label:'My wall already has a plug behind the TV',price:0,hideForFrame:true},{id:'1764781930302x564364127584649200',label:'I want my wires to hang under the TV',price:0}]},
+{stepKey:'lifting',id:'1764782088936x324396603514552300',title:'TV Size & Lifting',subtitle:'',type:'single_select',required:true,options:[{id:'1764782088936x256465061194235900',label:'My TV is under 70 inches',price:0,forCat:'small'},{id:'1764782113636x102636028242952200',label:'My TV is 70–85 inches and I can help lift it',price:0,forCat:'medium'},{id:'1764782128214x566028847520153600',label:'My TV is 70–85 inches and I cannot help lift it',price:70,forCat:'medium'},{id:'1764782163472x384097097839018000',label:'My TV is 86 inches or larger',price:70,forCat:'large'}]},
+{stepKey:'dismount',id:'1764782188853x511586073383272450',title:'Removal Service',subtitle:'',type:'single_select',required:true,options:[{id:'1764782188853x808798292635025400',label:'Guaranteed Dismount Service',price:35},{id:'1764782211660x555988338401083400',label:"No, I'll handle TV removal myself",price:0}]},
+{stepKey:'extras',id:'1764782250840x158482009487573000',title:'Anything else?',subtitle:'Optional add-ons.',type:'qty_multi',required:false,options:[{id:'1764782250840x266842303435112450',label:'Install Samsung Frame OneConnect box behind the TV',price:350,frameOnly:true},{id:'1764782279505x271635817643376640',label:'Apple TV installation, mounting bracket included',price:25},{id:'1764782290711x970982184191000600',label:'Soundbar Installation',price:50},{id:'1764782309911x896006087691206700',label:'Install shelf under TV',price:45},{id:'1764782317800x921128088064491500',label:'LED Lights',price:50},{id:'1764782333235x217237333436530700',label:'Handyman Labor (per hour)',price:85,allowText:true},{id:'1764782349563x143330046980390910',label:'Other',price:0,allowText:true}]},
+{stepKey:'terms',id:'1764782372085x850770250964140000',title:'Terms of Service',subtitle:"Our technician will help determine the best TV mounting height during installation, but ultimately it's up to you. If you need adjustments after the technician leaves, there'll be an extra charge. You can reschedule anytime unless within 24 hours of your appointment. Cancellations within 24 hours incur a $50 fee.",type:'terms',required:true,options:[{id:'1764782372085x351986086320275460',label:'I agree to the Terms of Service',price:0}]}
+]
+};
+const QUOTES={
+handyman:{service_id:'1772707009158x823589363475393000',sectionId:'1772707013465x669829422049330800',title:'Tell us what you need help with',sub:'Describe your project — the more detail you give, the better we can help.',placeholder:'Example: Patch a 4-inch hole in the hallway, assemble an IKEA dresser, hang 3 shelves and a mirror…',cta:'Request My Handyman'},
+hometheater:{service_id:'1779489954923x916667929316261400',sectionId:'1779489955060x690368666785430000',title:'Tell us about your home theater project',sub:'Share what you have and what you want installed. The more detail, the better the quote.',placeholder:'Example: I have a projector, a 120-inch screen, and a 7.1 surround system I need installed and calibrated…',cta:'Request My Quote'}
+};
+const FLOWS={tv:['frame_tv','size','bracket','fireplace','surface','wires','lifting','dismount','extras','terms','slots','customer'],handyman:['describe','customer'],hometheater:['describe','customer']};
+let selectedService=null,zipVerified=false,serviceConfig=null,stepIdx=0,isFrameTV=false;
+let selections={},selectedSlot=null;
+let slotsByDate={},selectedDate=null,calYear=null,calMonth=null;
+let describeText='',customer={first_name:'',last_name:'',email:'',phone:'',address:'',zip:''};
+let tipAmount=0,optionComments={};
+let _stripe=null,_stripeElements=null,_stripeCard=null;
+const BLUE='#0047AB',BLUE_DK='#003580',TINT='#EEF5FB',INK='#334455',MUTE='#777777',LINE='#D6DEE7',BLUE_LIGHT='#5199E4';
+function flowSteps(){let steps=['zip_verify'];if(zipVerified)steps.push('service');if(selectedService)steps.push(...(FLOWS[selectedService]||[]));return steps;}
+function getSec(k){return serviceConfig?.sections.find(s=>s.stepKey===k);}
+function getQty(sid,oid){return(selections[sid]||[]).find(x=>x.option_id===oid)?.quantity||0;}
+function setQty(sid,oid,q){if(!selections[sid])selections[sid]=[];const i=selections[sid].findIndex(x=>x.option_id===oid);if(q<=0){if(i!==-1)selections[sid].splice(i,1);}else if(i!==-1)selections[sid][i].quantity=q;else selections[sid].push({option_id:oid,quantity:q});}
+function toggleOpt(sid,oid){setQty(sid,oid,getQty(sid,oid)>0?0:1);}
+function selectOnly(sid,oid){selections[sid]=[{option_id:oid,quantity:1}];}
+function getMaxSizeCat(){const sec=getSec('size');if(!sec)return 'small';const sels=selections[sec.id]||[];for(const s of sels){if(sec.options.find(o=>o.id===s.option_id)?.sizecat==='large')return 'large';}for(const s of sels){if(sec.options.find(o=>o.id===s.option_id)?.sizecat==='medium')return 'medium';}return 'small';}
+function hasRegularTV(){return !((selections['__frame_type']||[]).length)||(selections['__frame_type']||[]).includes('regular');}
+function totalTVs(){const sec=getSec('size');if(!sec)return 0;return(selections[sec.id]||[]).reduce((s,x)=>s+x.quantity,0);}
+function hasDrywall(){const sec=getSec('surface');if(!sec)return true;const sels=selections[sec.id]||[];if(!sels.length)return true;const did=sec.options.find(o=>o.isDrywall)?.id;return sels.some(s=>s.option_id===did&&s.quantity>0);}
+function canHideBehindWall(){return hasDrywall();}
+function shouldSkip(k){if(k==='bracket'){const onlyFrame=isFrameTV&&!(selections['__frame_type']||[]).includes('regular');if(onlyFrame)return true;}if(k==='lifting'){const cat=getMaxSizeCat();if(cat==='small')return true;if(cat==='large')return true;}return false;}
+const HIDDEN_STEPS=new Set(['zip_verify','service']);
+function visibleStepNum(){let n=0;const fs=flowSteps();for(let i=0;i<=stepIdx;i++){if(!HIDDEN_STEPS.has(fs[i])&&!shouldSkip(fs[i]))n++;}return n;}
+function totalVisibleSteps(){let n=0;const fs=flowSteps();for(let i=0;i<fs.length;i++){if(!HIDDEN_STEPS.has(fs[i])&&!shouldSkip(fs[i]))n++;}return n;}
+function fmtDate(ds){const d=new Date(ds+'T12:00:00');const dn=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];const mn=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return{short:dn[d.getDay()],long:['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][d.getDay()],date:`${mn[d.getMonth()]} ${d.getDate()}`};}
+function calcTotal(){if(!serviceConfig)return 0;let sum=0;for(const sec of serviceConfig.sections)for(const sel of(selections[sec.id]||[])){const opt=sec.options.find(o=>o.id===sel.option_id);if(opt)sum+=(opt.price||0)*sel.quantity;}return sum;}
+function ensureStripe(){return new Promise(resolve=>{if(_stripe){resolve();return;}if(!STRIPE_KEY||/REPLACE_ME/.test(STRIPE_KEY)||!/^pk_/.test(STRIPE_KEY)){resolve();return;}function init(){try{_stripe=window.Stripe(STRIPE_KEY);_stripeElements=_stripe.elements();_stripeCard=_stripeElements.create('card',{style:{base:{color:INK,fontFamily:'-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif',fontSize:'15px','::placeholder':{color:'#9AA7B4'}},invalid:{color:'#E53E3E'}},hidePostalCode:true});}catch(e){_stripe=null;}resolve();}if(window.Stripe){init();return;}const s=document.createElement('script');s.src='https://js.stripe.com/v3/';s.onload=init;s.onerror=()=>resolve();document.head.appendChild(s);});}
+function mountStripeCard(){const el=document.getElementById('stripe-card-element');if(!el)return;if(_stripeCard){_stripeCard.mount(el);}else{el.innerHTML=`<div style="color:${MUTE}!important;font-size:13px!important;">Card entry will appear here once your Stripe key is set.</div>`;}  }
+const S={host:`display:block!important;visibility:visible!important;position:relative!important;z-index:999999!important;background:#fff!important;border:1px solid ${LINE}!important;border-radius:14px!important;padding:28px!important;box-shadow:0 12px 34px rgba(33,74,110,0.10)!important;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif!important;box-sizing:border-box!important;color:${INK}!important;`,bar:`background:${LINE}!important;height:6px!important;border-radius:3px!important;margin-bottom:16px!important;overflow:hidden!important;display:block!important;`,fill:p=>`background:${BLUE}!important;height:100%!important;width:${p}%!important;display:block!important;transition:width .3s!important;`,step:`color:${MUTE}!important;font-size:12px!important;text-transform:uppercase!important;letter-spacing:1px!important;display:block!important;margin-bottom:18px!important;`,h1:`margin:0 0 8px 0!important;font-size:22px!important;font-weight:800!important;color:${INK}!important;display:block!important;line-height:1.3!important;`,sub:`color:${MUTE}!important;font-size:13px!important;display:block!important;margin-bottom:16px!important;line-height:1.5!important;`,input:`width:100%!important;padding:14px 16px!important;background:#F7FAFC!important;border:1px solid ${LINE}!important;color:${INK}!important;border-radius:8px!important;font-size:17px!important;box-sizing:border-box!important;margin-bottom:20px!important;display:block!important;text-align:center!important;`,inputL:`width:100%!important;padding:11px 14px!important;background:#F7FAFC!important;border:1px solid ${LINE}!important;color:${INK}!important;border-radius:6px!important;font-size:15px!important;box-sizing:border-box!important;margin-bottom:12px!important;display:block!important;`,btnPri:`background:${BLUE}!important;color:#fff!important;border:none!important;padding:13px 26px!important;font-size:15px!important;font-weight:700!important;border-radius:8px!important;cursor:pointer!important;display:inline-block!important;`,btnSec:`background:transparent!important;color:${MUTE}!important;border:1px solid ${LINE}!important;padding:10px 20px!important;font-size:14px!important;border-radius:6px!important;cursor:pointer!important;display:inline-block!important;`,btnDis:`background:#EDF1F5!important;color:#A7B3BE!important;border:none!important;padding:13px 26px!important;font-size:15px!important;font-weight:700!important;border-radius:8px!important;cursor:not-allowed!important;display:inline-block!important;`,actions:'display:flex!important;justify-content:space-between!important;align-items:center!important;margin-top:20px!important;',card:on=>`background:${on?TINT:'#fff'}!important;border:1.5px solid ${on?BLUE:LINE}!important;border-radius:8px!important;padding:13px 15px!important;color:${INK}!important;display:flex!important;align-items:center!important;justify-content:space-between!important;margin-bottom:8px!important;font-size:14px!important;cursor:pointer!important;`,qRow:on=>`background:${on?TINT:'#fff'}!important;border:1.5px solid ${on?BLUE:LINE}!important;border-radius:8px!important;padding:11px 14px!important;color:${INK}!important;display:flex!important;align-items:center!important;margin-bottom:8px!important;font-size:14px!important;`,qBtn:`background:${TINT}!important;color:${BLUE_DK}!important;border:1px solid ${LINE}!important;width:30px!important;height:30px!important;border-radius:6px!important;font-size:18px!important;cursor:pointer!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;flex-shrink:0!important;`,qNum:`color:${BLUE}!important;font-weight:700!important;font-size:17px!important;min-width:22px!important;text-align:center!important;display:inline-block!important;`,info:`background:${TINT}!important;border:1px solid ${BLUE}!important;border-radius:7px!important;padding:10px 14px!important;margin-bottom:14px!important;font-size:13px!important;color:${BLUE_DK}!important;display:block!important;`,ok:`background:#D6E8F7!important;border:1px solid ${BLUE_LIGHT}!important;border-radius:7px!important;padding:10px 14px!important;margin-bottom:14px!important;font-size:13px!important;color:${BLUE_DK}!important;display:block!important;`,price:p=>p>0?` <span style="color:${MUTE}!important;font-size:12px!important;">(+$${p})</span>`:'',};
+function render(){const root=document.getElementById(TARGET_ID);if(!root)return;root.style.cssText=S.host;const key=flowSteps()[stepIdx];let prog='';if(key!=='zip_verify'&&key!=='service'){const pct=Math.round(visibleStepNum()/totalVisibleSteps()*100);prog=`<div style="${S.bar}"><div style="${S.fill(pct)}"></div></div><div style="${S.step}">Step ${visibleStepNum()} of ${totalVisibleSteps()}</div>`;}let body='';switch(key){case 'zip_verify':body=bZipVerify();break;case 'service':body=bService();break;case 'describe':body=bDescribe();break;case 'frame_tv':body=bFrameTV();break;case 'size':body=bSize();break;case 'bracket':body=bBracket();break;case 'fireplace':body=bGeneric(getSec('fireplace'));break;case 'surface':body=bGeneric(getSec('surface'));break;case 'wires':body=bWires();break;case 'lifting':body=bLifting();break;case 'dismount':body=bDismount();break;case 'extras':body=bExtras();break;case 'terms':body=bTerms();break;case 'slots':body=bSlots();break;case 'customer':body=bCustomer();break;}root.innerHTML=prog+body;wire(root);if(key==='customer'&&selectedService==='tv')ensureStripe().then(mountStripeCard);}
+const DENVER_ZIPS=new Set(['80001','80002','80003','80004','80005','80006','80007','80010','80011','80012','80013','80014','80015','80016','80017','80018','80019','80020','80021','80022','80023','80024','80025','80026','80027','80030','80031','80033','80034','80035','80036','80037','80038','80040','80041','80042','80044','80045','80046','80047','80101','80102','80103','80104','80105','80106','80107','80108','80109','80110','80111','80112','80113','80116','80117','80118','80120','80121','80122','80123','80124','80125','80126','80127','80128','80129','80130','80134','80135','80136','80137','80138','80150','80151','80155','80160','80161','80162','80163','80165','80166','80201','80202','80203','80204','80205','80206','80207','80208','80209','80210','80211','80212','80214','80215','80216','80217','80218','80219','80220','80221','80222','80223','80224','80225','80226','80227','80228','80229','80230','80231','80232','80233','80234','80235','80236','80237','80238','80239','80240','80241','80242','80243','80244','80246','80247','80248','80249','80250','80251','80252','80256','80257','80259','80260','80261','80262','80263','80264','80265','80266','80270','80271','80273','80274','80275','80279','80280','80281','80282','80290','80291','80293','80294','80295','80299','80301','80302','80303','80304','80305','80310','80314','80401','80402','80403','80419','80465','80516','80601','80602','80603','80614','80640','80642','80643','80654']);
+function bZipVerify(){const zip=customer.zip||'';const isValid=/^\d{5}$/.test(zip);const inArea=isValid&&DENVER_ZIPS.has(zip);const notInArea=isValid&&!inArea;return `<h1 style="${S.h1};font-size:24px!important;">Do we service your area?</h1><input type="text" id="verify-zip" style="${S.input};margin-top:16px!important;" placeholder="ZIP Code" maxlength="5" inputmode="numeric" value="${zip}" autocomplete="postal-code"><div id="zip-msg" style="min-height:40px!important;margin-bottom:8px!important;">${notInArea?`<div style="background:#FFE5E5!important;border:1px solid #FF9999!important;border-radius:8px!important;padding:12px!important;font-size:13px!important;color:#C53030!important;"><strong>Outside our service area.</strong> We currently serve Denver &amp; the surrounding metro.</div>`:''}${inArea?`<div style="background:#D6E8F7!important;border:1px solid ${BLUE_LIGHT}!important;border-radius:8px!important;padding:12px!important;font-size:13px!important;color:${BLUE_DK}!important;"><strong>&#10003; Great news!</strong> We service your area.</div>`:''}</div><div style="text-align:center!important;"><button id="btn-verify-zip" style="${inArea?S.btnPri:S.btnDis}" ${!inArea?'disabled':''}>Continue &#8594;</button></div>`;}
+function bService(){const ICON_TV=`<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="${BLUE}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>`;const ICON_HM=`<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="${BLUE}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2-2 2.6-2.6z"/></svg>`;const ICON_HT=`<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="${BLUE}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="12" rx="2"/><circle cx="8" cy="10" r="2.3"/><circle cx="16" cy="10" r="2.3"/><line x1="6" y1="20" x2="18" y2="20"/></svg>`;const cardCss=`text-align:left!important;border:none!important;border-radius:10px!important;padding:18px 16px!important;margin-bottom:12px!important;cursor:pointer!important;display:flex!important;align-items:center!important;gap:16px!important;background:#F5F9FF!important;transition:all .2s!important;`;const iconWrap=`width:50px!important;height:50px!important;border-radius:12px!important;background:${TINT}!important;display:flex!important;align-items:center!important;justify-content:center!important;flex-shrink:0!important;border:2px solid ${BLUE}!important;`;const tName=`font-size:16px!important;font-weight:700!important;color:${INK}!important;display:block!important;margin-bottom:2px!important;`;const tDesc=`font-size:13px!important;color:${MUTE}!important;display:block!important;line-height:1.5!important;`;const arrow=`margin-left:auto!important;color:${BLUE}!important;font-size:24px!important;font-weight:600!important;flex-shrink:0!important;`;return `<h1 style="${S.h1};font-size:24px!important;">Choose Your Service</h1><p style="${S.sub}">Select what you need and we'll get you set up</p><div class="dom-svc" data-svc="tv" style="${cardCss}"><span style="${iconWrap}">${ICON_TV}</span><span><span style="${tName}">📺 TV Mounting</span><span style="${tDesc}">Book instantly &amp; pick your time</span></span><span style="${arrow}">›</span></div><div class="dom-svc" data-svc="handyman" style="${cardCss}"><span style="${iconWrap}">${ICON_HM}</span><span><span style="${tName}">🔧 Handyman</span><span style="${tDesc}">Request a custom quote</span></span><span style="${arrow}">›</span></div><div class="dom-svc" data-svc="hometheater" style="${cardCss}"><span style="${iconWrap}">${ICON_HT}</span><span><span style="${tName}">🎬 Home Theater</span><span style="${tDesc}">Get your setup quote</span></span><span style="${arrow}">›</span></div><div style="margin-top:20px!important;"><button id="btn-back-zip" style="${S.btnSec}">← Change ZIP</button></div>`;}
+function bDescribe(){const q=QUOTES[selectedService];if(!q)return '';const ok=describeText.trim().length>0;return `<h1 style="${S.h1}">${q.title}</h1><p style="${S.sub}">${q.sub}</p><textarea id="dom-describe" rows="6" style="width:100%!important;padding:14px!important;background:#F7FAFC!important;border:1.5px solid ${ok?BLUE:LINE}!important;color:${INK}!important;border-radius:10px!important;font-size:15px!important;box-sizing:border-box!important;resize:vertical!important;font-family:inherit!important;line-height:1.5!important;margin-bottom:6px!important;" placeholder="${q.placeholder}">${describeText.replace(/</g,'&lt;')}</textarea><p style="font-size:12px!important;color:${MUTE}!important;margin:0 0 4px 0!important;">No payment now — we'll review and follow up with next steps.</p><div style="${S.actions}"><button id="btn-prev" style="${S.btnSec}">← Back</button><button id="btn-next" style="${ok?S.btnPri:S.btnDis}" ${!ok?'disabled':''}>Continue →</button></div>`;}
+function bFrameTV(){const frameOn=(selections['__frame_type']||[]).includes('frame');const regOn=(selections['__frame_type']||[]).includes('regular');const any=frameOn||regOn;return `<h1 style="${S.h1}">What kind of TV do you have?</h1><p style="${S.sub}">Select each TV type you're mounting. Smart frame TVs like Samsung Frame and LG Gallery come with their own bracket.</p><div class="dom-tv-type" data-type="frame" style="${S.card(frameOn)}"><span>Samsung FrameTV or LG Gallery</span><span style="color:${frameOn?BLUE:'#A7B3BE'}!important;font-size:18px!important;">${frameOn?'✓':'☐'}</span></div><div class="dom-tv-type" data-type="regular" style="${S.card(regOn)}"><span>Traditional TV</span><span style="color:${regOn?BLUE:'#A7B3BE'}!important;font-size:18px!important;">${regOn?'✓':'☐'}</span></div><div style="${S.actions}"><button id="btn-prev" style="${S.btnSec}">← Back</button><button id="btn-next" style="${any?S.btnPri:S.btnDis}" ${!any?'disabled':''}>Continue →</button></div>`;}
+function bSize(){const sec=getSec('size');const opts=sec.options.map(o=>{const q=getQty(sec.id,o.id);return `<div style="${S.qRow(q>0)}"><span style="flex:1!important;">${o.label}${S.price(o.price)}</span><div style="display:flex!important;align-items:center!important;gap:8px!important;flex-shrink:0!important;"><button class="dom-dec" data-s="${sec.id}" data-o="${o.id}" style="${S.qBtn}">−</button><span style="${S.qNum}">${q}</span><button class="dom-inc" data-s="${sec.id}" data-o="${o.id}" style="${S.qBtn}">+</button></div></div>`;}).join('');const ok=totalTVs()>0;return `<h1 style="${S.h1}">${sec.title}</h1><p style="${S.sub}">${sec.subtitle}</p>${opts}<div style="${S.actions}"><button id="btn-prev" style="${S.btnSec}">← Back</button><button id="btn-next" style="${ok?S.btnPri:S.btnDis}" ${!ok?'disabled':''}>Continue →</button></div>`;}
+function bBracket(){const sec=getSec('bracket');const tvs=totalTVs(),brks=(selections[sec.id]||[]).reduce((s,x)=>s+x.quantity,0);const reg=hasRegularTV();const visible=sec.options.filter(o=>{if(o.forSize==='frame')return isFrameTV;if(o.forSize==='any')return reg;if(o.forSize==='standard')return reg;return true;});const banner=brks<tvs?`<div style="${S.info}">📺 You have <strong>${tvs} TV${tvs>1?'s':''}</strong> — select <strong>${tvs-brks}</strong> more bracket${tvs-brks>1?'s':''}.</div>`:`<div style="${S.ok}">✓ All ${tvs} TV${tvs>1?'s':''} have a bracket assigned.</div>`;const opts=visible.map(o=>{const q=getQty(sec.id,o.id);return `<div style="${S.qRow(q>0)}"><span style="flex:1!important;">${o.label}${S.price(o.price)}</span><div style="display:flex!important;align-items:center!important;gap:8px!important;flex-shrink:0!important;"><button class="dom-dec" data-s="${sec.id}" data-o="${o.id}" style="${S.qBtn}">−</button><span style="${S.qNum}">${q}</span><button class="dom-inc" data-s="${sec.id}" data-o="${o.id}" style="${S.qBtn}">+</button></div></div>`;}).join('');const ok=brks===tvs&&tvs>0;return `<h1 style="${S.h1}">${sec.title}</h1><p style="${S.sub}">You have ${tvs} TV${tvs>1?'s':''} — select ${tvs} bracket${tvs>1?'s':''} total.</p>${banner}${opts}<div style="${S.actions}"><button id="btn-prev" style="${S.btnSec}">← Back</button><button id="btn-next" style="${ok?S.btnPri:S.btnDis}" ${!ok?'disabled':''}>Continue →</button></div>`;}
+function bGeneric(sec){if(!sec)return '';const tvs=totalTVs();const total=(selections[sec.id]||[]).reduce((s,x)=>s+x.quantity,0);let banner='';if(sec.enforceTVCount&&tvs>0){banner=total<tvs?`<div style="${S.info}">📺 You have <strong>${tvs} TV${tvs>1?'s':''}</strong> — select options totalling ${tvs} (${total} of ${tvs} done).</div>`:`<div style="${S.ok}">✓ All ${tvs} TV${tvs>1?'s':''} accounted for.</div>`;}const optsHtml=sec.options.map(o=>{const q=getQty(sec.id,o.id);return `<div style="${S.qRow(q>0)}"><span style="flex:1!important;">${o.label}${S.price(o.price)}</span><div style="display:flex!important;align-items:center!important;gap:8px!important;flex-shrink:0!important;"><button class="dom-dec" data-s="${sec.id}" data-o="${o.id}" style="${S.qBtn}">−</button><span style="${S.qNum}">${q}</span><button class="dom-inc" data-s="${sec.id}" data-o="${o.id}" style="${S.qBtn}">+</button></div></div>`;}).join('');const countOk=sec.enforceTVCount?(tvs===0||total===tvs):true;const ok=(!sec.required||total>0)&&countOk;return `<h1 style="${S.h1}">${sec.title}</h1><p style="${S.sub}">${sec.subtitle}</p>${banner}${optsHtml}<div style="${S.actions}"><button id="btn-prev" style="${S.btnSec}">← Back</button><button id="btn-next" style="${ok?S.btnPri:S.btnDis}" ${!ok?'disabled':''}>Continue →</button></div>`;}
+function bWires(){const sec=getSec('wires');const tvs=totalTVs();const visibleOpts=sec.options.filter(o=>{if(o.needsDrywall&&!canHideBehindWall())return false;if(o.hideForFrame&&isFrameTV)return false;return true;});if(isFrameTV&&hasDrywall()){visibleOpts.push({id:serviceConfig.oneConnectOptionId,label:'Install Samsung Frame OneConnect box behind the TV',price:350,_altSection:serviceConfig.oneConnectSectionId});}const wireTotal=(selections[sec.id]||[]).reduce((s,x)=>s+x.quantity,0);const wireBanner=tvs>0?(wireTotal<tvs?`<div style="${S.info}">📺 You have <strong>${tvs} TV${tvs>1?'s':''}</strong> — select a wire option for each (${wireTotal} of ${tvs} done).</div>`:`<div style="${S.ok}">✓ All ${tvs} TV${tvs>1?'s':''} have a wire option.</div>`):'';const opts=visibleOpts.map(o=>{const sid=o._altSection||sec.id;const q=getQty(sid,o.id);return `<div style="${S.qRow(q>0)}"><span style="flex:1!important;">${o.label}${S.price(o.price)}</span><div style="display:flex!important;align-items:center!important;gap:8px!important;flex-shrink:0!important;"><button class="dom-dec" data-s="${sid}" data-o="${o.id}" style="${S.qBtn}">−</button><span style="${S.qNum}">${q}</span><button class="dom-inc" data-s="${sid}" data-o="${o.id}" style="${S.qBtn}">+</button></div></div>`;}).join('');const wireOk=tvs===0||wireTotal===tvs;return `<h1 style="${S.h1}">${sec.title}</h1><p style="${S.sub}">Select one per TV.</p>${wireBanner}${opts}<div style="${S.actions}"><button id="btn-prev" style="${S.btnSec}">← Back</button><button id="btn-next" style="${wireOk?S.btnPri:S.btnDis}" ${!wireOk?'disabled':''}>Continue →</button></div>`;}
+function bLifting(){const sec=getSec('lifting');const medOpts=sec.options.filter(o=>o.forCat==='medium');const cur=(selections[sec.id]||[])[0]?.option_id;const LIFT={'1764782113636x102636028242952200':'I can help lift the TV into place','1764782128214x566028847520153600':'I cannot help lift the TV into place'};const opts=medOpts.map(o=>{const on=cur===o.id;return `<div class="dom-sel" data-s="${sec.id}" data-o="${o.id}" style="${S.card(on)}"><span>${LIFT[o.id]||o.label}${S.price(o.price)}</span><span style="color:${on?BLUE:'#A7B3BE'}!important;font-size:18px!important;">${on?'●':'○'}</span></div>`;}).join('');const ok=!!cur;return `<h1 style="${S.h1}">Can you help us lift the TV?</h1><p style="${S.sub}">One or more of your TVs is in the 70–85" range. Can you assist the technician lifting it onto the bracket?</p>${opts}<div style="${S.actions}"><button id="btn-prev" style="${S.btnSec}">← Back</button><button id="btn-next" style="${ok?S.btnPri:S.btnDis}" ${!ok?'disabled':''}>Continue →</button></div>`;}
+function bDismount(){const sec=getSec('dismount');const cur=(selections[sec.id]||[])[0]?.option_id;const yesId=sec.options[0].id,noId=sec.options[1].id,yesOn=cur===yesId;return `<h1 style="margin:0 0 10px 0!important;font-size:26px!important;font-weight:800!important;color:${INK}!important;display:block!important;line-height:1.2!important;">Removal Service</h1><p style="font-size:13px!important;color:${MUTE}!important;margin:0 0 14px 0!important;line-height:1.6!important;"><strong style="color:${INK}!important;">Thinking of upgrading your TV later?</strong> We offer <strong style="color:${BLUE}!important;">professional removal at no charge</strong> to our past mounting customers.</p><div style="background:#F7FAFC!important;border:1px solid ${LINE}!important;border-radius:10px!important;padding:14px!important;margin-bottom:12px!important;"><div style="font-size:14px!important;font-weight:700!important;color:${INK}!important;margin-bottom:10px!important;">What's Included</div>${['Professional TV removal when you upgrade','Wall patch & cleanup (no extra charge)'].map(t=>`<div style="display:flex!important;gap:8px!important;align-items:flex-start!important;font-size:13px!important;color:${MUTE}!important;margin-bottom:7px!important;"><span style="color:${BLUE}!important;font-size:15px!important;flex-shrink:0!important;">✔</span><span>${t}</span></div>`).join('')}</div><div style="display:grid!important;grid-template-columns:1fr 1fr 1fr!important;gap:8px!important;margin-bottom:14px!important;">${[['$35','Future Service'],['Expert','Removal'],['Included','Repairs']].map(c=>`<div style="background:#F7FAFC!important;border:1.5px solid ${BLUE}!important;border-radius:8px!important;padding:12px 6px!important;text-align:center!important;"><div style="font-size:18px!important;font-weight:800!important;color:${BLUE}!important;">${c[0]}</div><div style="font-size:10px!important;color:${MUTE}!important;margin-top:3px!important;">${c[1]}</div></div>`).join('')}</div><button id="btn-dis-yes" style="background:${BLUE}!important;opacity:${yesOn?'1':'0.9'}!important;color:#fff!important;border:${yesOn?'2px solid '+BLUE_DK:'none'}!important;padding:15px!important;border-radius:10px!important;font-size:15px!important;font-weight:700!important;cursor:pointer!important;width:100%!important;display:block!important;text-align:center!important;box-sizing:border-box!important;margin-bottom:10px!important;">${yesOn?'✓ ':''}Yes — Add Removal Service ($35)</button><div style="text-align:center!important;margin-bottom:8px!important;"><button id="btn-dis-no" style="background:${cur===noId?'#EDF1F5':'transparent'}!important;color:${cur===noId?INK:MUTE}!important;border:none!important;font-size:13px!important;cursor:pointer!important;text-decoration:underline!important;padding:8px 16px!important;">${cur===noId?'✓ ':''}Skip this for now</button></div><div style="${S.actions}"><button id="btn-prev" style="${S.btnSec}">← Back</button><button id="btn-next" style="${cur?S.btnPri:S.btnDis}" ${!cur?'disabled':''}>Continue →</button></div>`;}
+function bExtras(){const sec=getSec('extras');const visible=sec.options.filter(o=>!o.frameOnly);const opts=visible.map(o=>{const q=getQty(sec.id,o.id);const row=`<div style="${S.qRow(q>0)}"><span style="flex:1!important;">${o.label}${S.price(o.price)}</span><div style="display:flex!important;align-items:center!important;gap:8px!important;flex-shrink:0!important;"><button class="dom-dec" data-s="${sec.id}" data-o="${o.id}" style="${S.qBtn}">−</button><span style="${S.qNum}">${q}</span><button class="dom-inc" data-s="${sec.id}" data-o="${o.id}" style="${S.qBtn}">+</button></div></div>`;const showText=o.allowText&&q>0;const ph=/Other/i.test(o.label)?'e.g. I also need some curtains hung…':'Tell us what you need the handyman for…';const textBox=showText?`<div style="margin:-2px 0 10px 0!important;"><textarea class="dom-comment" data-o="${o.id}" rows="2" style="width:100%!important;padding:10px 12px!important;background:#F7FAFC!important;border:1px solid ${BLUE}!important;color:${INK}!important;border-radius:6px!important;font-size:14px!important;box-sizing:border-box!important;resize:vertical!important;font-family:inherit!important;" placeholder="${ph}">${(optionComments[o.id]||'').replace(/</g,'&lt;')}</textarea></div>`:'';return row+textBox;}).join('');return `<h1 style="${S.h1}">${sec.title}</h1><p style="${S.sub}">${sec.subtitle}</p>${opts}<div style="${S.actions}"><button id="btn-prev" style="${S.btnSec}">← Back</button><button id="btn-next" style="${S.btnPri}">Continue →</button></div>`;}
+function bTerms(){const sec=getSec('terms');const agreed=(selections[sec.id]||[])[0]?.option_id===sec.options[0].id;return `<h1 style="${S.h1}">${sec.title}</h1><div style="background:#F7FAFC!important;border:1px solid ${LINE}!important;border-radius:8px!important;padding:16px!important;margin-bottom:20px!important;font-size:13px!important;color:${MUTE}!important;line-height:1.7!important;max-height:130px!important;overflow-y:auto!important;">${sec.subtitle}</div><div style="display:flex!important;justify-content:center!important;margin-bottom:20px!important;"><div class="dom-sel" data-s="${sec.id}" data-o="${sec.options[0].id}" style="background:${agreed?'#D6E8F7':'#fff'}!important;border:1.5px solid ${agreed?BLUE_LIGHT:LINE}!important;border-radius:8px!important;padding:12px 24px!important;color:${INK}!important;display:inline-flex!important;align-items:center!important;gap:10px!important;font-size:14px!important;cursor:pointer!important;"><span style="font-size:20px!important;">${agreed?'☑':'☐'}</span><span>${sec.options[0].label}</span></div></div><div style="${S.actions}"><button id="btn-prev" style="${S.btnSec}">← Back</button><button id="btn-next" style="${agreed?S.btnPri:S.btnDis}" ${!agreed?'disabled':''}>Continue →</button></div>`;}
+function bSlots(){const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];const DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];const allDates=Object.keys(slotsByDate).sort();if(!allDates.length){return `<h1 style="${S.h1}">What day works best for you?</h1><p style="color:${MUTE}!important;font-size:14px!important;margin-bottom:16px!important;">Loading available dates…</p><div style="${S.actions}"><button id="btn-prev" style="${S.btnSec}">← Back</button></div>`;}if(calYear===null){const f=new Date(allDates[0]+'T12:00:00');calYear=f.getFullYear();calMonth=f.getMonth();}const availSet=new Set(allDates);const firstDay=new Date(calYear,calMonth,1).getDay();const daysInMonth=new Date(calYear,calMonth+1,0).getDate();const todayStr=new Date().toISOString().slice(0,10);const firstAvail=new Date(allDates[0]+'T12:00:00');const lastAvail=new Date(allDates[allDates.length-1]+'T12:00:00');const canPrev=calYear>firstAvail.getFullYear()||(calYear===firstAvail.getFullYear()&&calMonth>firstAvail.getMonth());const canNext=calYear<lastAvail.getFullYear()||(calYear===lastAvail.getFullYear()&&calMonth<lastAvail.getMonth());const dayHdr=DAYS.map(d=>`<div style="text-align:center!important;font-size:11px!important;font-weight:600!important;color:${MUTE}!important;padding:4px 0 8px 0!important;">${d}</div>`).join('');let cells='';for(let i=0;i<firstDay;i++)cells+='<div></div>';for(let d=1;d<=daysInMonth;d++){const ds=`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;const has=availSet.has(ds),isSel=selectedDate===ds,isToday=ds===todayStr;if(has){cells+=`<div class="dom-date" data-date="${ds}" style="text-align:center!important;cursor:pointer!important;padding:4px 2px!important;border-radius:8px!important;background:${isSel?TINT:'transparent'}!important;"><div style="width:32px!important;height:32px!important;border-radius:50%!important;margin:0 auto!important;display:flex!important;align-items:center!important;justify-content:center!important;background:${isSel?BLUE:isToday?TINT:'transparent'}!important;font-size:14px!important;font-weight:${isSel||isToday?700:400}!important;color:${isSel?'#fff':isToday?BLUE:INK}!important;border:${isToday&&!isSel?'1.5px solid '+BLUE:'none'}!important;">${d}</div></div>`;}else{cells+=`<div style="text-align:center!important;padding:4px 2px!important;"><div style="width:32px!important;height:32px!important;margin:0 auto!important;display:flex!important;align-items:center!important;justify-content:center!important;font-size:14px!important;color:#C2CCD6!important;">${d}</div></div>`;}  }let timeHtml='';if(selectedDate&&slotsByDate[selectedDate]){const df=fmtDate(selectedDate);const slotBtns=slotsByDate[selectedDate].map(sl=>{const on=selectedSlot===sl.id;return `<div class="dom-slot" data-id="${sl.id}" style="background:${on?TINT:'#fff'}!important;border:1.5px solid ${on?BLUE:LINE}!important;border-radius:8px!important;padding:14px 10px!important;cursor:pointer!important;text-align:center!important;"><div style="font-size:13px!important;font-weight:600!important;color:${INK}!important;">${sl.arrival_window}</div></div>`;}).join('');timeHtml=`<div style="border-top:1px solid ${LINE}!important;margin-top:12px!important;padding-top:12px!important;"><p style="font-size:13px!important;color:${MUTE}!important;margin:0 0 10px 0!important;">${df.long}, ${df.date} — select a time:</p><div style="display:grid!important;grid-template-columns:1fr 1fr!important;gap:8px!important;">${slotBtns}</div></div>`;}return `<h1 style="${S.h1}">What day works best for you?</h1><div style="background:#fff!important;border:1px solid ${LINE}!important;border-radius:10px!important;padding:14px!important;margin-bottom:14px!important;"><div style="display:flex!important;align-items:center!important;justify-content:space-between!important;margin-bottom:10px!important;"><button id="cal-prev" style="background:transparent!important;border:1px solid ${LINE}!important;color:${canPrev?BLUE:'#C2CCD6'}!important;width:30px!important;height:30px!important;border-radius:50%!important;cursor:${canPrev?'pointer':'default'}!important;font-size:16px!important;display:flex!important;align-items:center!important;justify-content:center!important;" ${!canPrev?'disabled':''}>‹</button><span style="font-size:15px!important;font-weight:700!important;color:${INK}!important;">${MONTHS[calMonth]} ${calYear}</span><button id="cal-next" style="background:transparent!important;border:1px solid ${LINE}!important;color:${canNext?BLUE:'#C2CCD6'}!important;width:30px!important;height:30px!important;border-radius:50%!important;cursor:${canNext?'pointer':'default'}!important;font-size:16px!important;display:flex!important;align-items:center!important;justify-content:center!important;" ${!canNext?'disabled':''}>›</button></div><div style="display:grid!important;grid-template-columns:repeat(7,1fr)!important;">${dayHdr}</div><div style="display:grid!important;grid-template-columns:repeat(7,1fr)!important;">${cells}</div>${timeHtml}</div><div style="${S.actions}"><button id="btn-prev" style="${S.btnSec}">← Back</button><button id="btn-next" style="${selectedSlot?S.btnPri:S.btnDis}" ${!selectedSlot?'disabled':''}>Continue →</button></div>`;}
+function bCustomer(){const isTV=selectedService==='tv';const fields=`<input type="text"  id="c-fn" style="${S.inputL}" placeholder="First Name"     value="${customer.first_name}"><input type="text"  id="c-ln" style="${S.inputL}" placeholder="Last Name"      value="${customer.last_name}"><input type="email" id="c-em" style="${S.inputL}" placeholder="Email Address"  value="${customer.email}"><input type="tel"   id="c-ph" style="${S.inputL}" placeholder="Phone Number"   value="${customer.phone}"><input type="text"  id="c-ad" style="${S.inputL}" placeholder="Street Address" value="${customer.address}"><input type="text"  id="c-zip" style="${S.inputL}" placeholder="ZIP" maxlength="5" inputmode="numeric" value="${customer.zip}">`;if(!isTV){const q=QUOTES[selectedService];return `<h1 style="${S.h1};color:${BLUE}!important;">Last step — your contact info</h1><p style="${S.sub}">We'll use this to follow up about your ${selectedService==='handyman'?'handyman request':'home theater quote'}.</p>${fields}<div style="background:${TINT}!important;border:1px solid ${BLUE}!important;border-radius:10px!important;padding:14px 16px!important;margin:6px 0 18px 0!important;font-size:13px!important;color:${BLUE_DK}!important;line-height:1.6!important;">✅ <strong>No payment now.</strong> We'll review your details and reach out shortly with next steps.</div><div style="${S.actions}"><button id="btn-prev" style="${S.btnSec}">← Back</button><button id="btn-submit" style="${S.btnPri}">${q.cta} ✓</button></div>`;}const tips=[0,5,10,15,20];const tipHtml=tips.map(t=>`<button class="dom-tip" data-tip="${t}" style="background:${tipAmount===t?BLUE:'#fff'}!important;color:${tipAmount===t?'#fff':INK}!important;border:1.5px solid ${tipAmount===t?BLUE:LINE}!important;border-radius:6px!important;padding:8px 14px!important;font-size:14px!important;cursor:pointer!important;flex:1!important;">${t===0?'No Tip':`$${t}`}</button>`).join('');return `<h1 style="${S.h1};color:${BLUE}!important;">Almost done! Last step…</h1><div style="background:#D6E8F7!important;border:1px solid ${BLUE_LIGHT}!important;border-radius:8px!important;padding:12px 14px!important;margin-bottom:18px!important;font-size:12px!important;color:${MUTE}!important;line-height:1.6!important;">💳 <strong style="color:${INK}!important;">Your card will not be charged until after the job is complete.</strong> Payment is taken at time of service by the technician. Your card only holds the appointment.</div>${fields}<div style="background:#fff!important;border:1px solid ${LINE}!important;border-radius:8px!important;padding:14px!important;margin-bottom:14px!important;"><div style="font-size:11px!important;color:${MUTE}!important;margin-bottom:12px!important;font-weight:600!important;text-transform:uppercase!important;letter-spacing:0.5px!important;">💳 Card to Hold Appointment</div><div id="stripe-card-element" style="background:#F7FAFC!important;border:1px solid ${LINE}!important;border-radius:6px!important;padding:14px!important;min-height:44px!important;"></div><p style="font-size:11px!important;color:#8A97A4!important;margin:8px 0 0 0!important;">🔒 Secured by Stripe. Payment collected by technician at time of service.</p></div><div style="margin-bottom:14px!important;"><div style="font-size:13px!important;color:${MUTE}!important;margin-bottom:8px!important;">Tip your technician (optional)</div><div style="display:flex!important;gap:6px!important;">${tipHtml}</div></div><div style="background:#D6E8F7!important;border:1.5px solid ${BLUE_LIGHT}!important;border-radius:10px!important;padding:16px 18px!important;margin-bottom:18px!important;"><div style="display:flex!important;align-items:center!important;justify-content:space-between!important;margin-bottom:8px!important;"><div style="font-size:14px!important;font-weight:700!important;color:${INK}!important;">Your estimated total</div><div style="font-size:26px!important;font-weight:800!important;color:${BLUE}!important;">$${calcTotal()}</div></div><div style="font-size:12px!important;color:${MUTE}!important;line-height:1.6!important;">Taxes &amp; adjustments applied at checkout.<br>You can add or remove services with the technician at the time of the appointment.</div></div><div style="${S.actions}"><button id="btn-prev" style="${S.btnSec}">← Back</button><button id="btn-submit" style="${S.btnPri}">Complete My Booking ✓</button></div>`;}
+function wire(root){root.querySelectorAll('.dom-svc').forEach(c=>c.addEventListener('click',()=>{selectedService=c.dataset.svc;serviceConfig=selectedService==='tv'?TV:null;goNext();}));root.querySelector('#btn-prev')?.addEventListener('click',()=>goBack());root.querySelector('#btn-next')?.addEventListener('click',()=>goNext());root.querySelector('#btn-submit')?.addEventListener('click',()=>doSubmit(root));root.querySelector('#btn-verify-zip')?.addEventListener('click',()=>{if(DENVER_ZIPS.has(customer.zip)){zipVerified=true;stepIdx=0;goNext();}});root.querySelector('#btn-back-zip')?.addEventListener('click',()=>{zipVerified=false;stepIdx=0;render();});root.querySelector('#cal-prev')?.addEventListener('click',()=>{calMonth--;if(calMonth<0){calMonth=11;calYear--;}render();});root.querySelector('#cal-next')?.addEventListener('click',()=>{calMonth++;if(calMonth>11){calMonth=0;calYear++;}render();});root.querySelector('#btn-dis-yes')?.addEventListener('click',()=>{const s=getSec('dismount');if(s)selectOnly(s.id,s.options[0].id);render();});root.querySelector('#btn-dis-no')?.addEventListener('click',()=>{const s=getSec('dismount');if(s)selectOnly(s.id,s.options[1].id);render();});const ta=root.querySelector('#dom-describe');if(ta)ta.addEventListener('input',e=>{describeText=e.target.value;const nb=root.querySelector('#btn-next'),on=describeText.trim().length>0;if(nb){nb.disabled=!on;nb.style.cssText=on?S.btnPri:S.btnDis;}e.target.style.borderColor=on?BLUE:LINE;});root.querySelectorAll('.dom-tv-type').forEach(c=>c.addEventListener('click',()=>{const type=c.dataset.type;if(!selections['__frame_type'])selections['__frame_type']=[];const idx=selections['__frame_type'].indexOf(type);if(idx!==-1)selections['__frame_type'].splice(idx,1);else selections['__frame_type'].push(type);isFrameTV=selections['__frame_type'].includes('frame');const onlyFrame=isFrameTV&&!selections['__frame_type'].includes('regular');setQty(serviceConfig.frameBracketSectionId,serviceConfig.frameBracketOptionId,onlyFrame?(totalTVs()||1):0);render();}));root.querySelectorAll('.dom-inc').forEach(b=>b.addEventListener('click',e=>{const s=b.dataset.s,o=b.dataset.o;setQty(s,o,getQty(s,o)+1);render();}));root.querySelectorAll('.dom-dec').forEach(b=>b.addEventListener('click',e=>{const s=b.dataset.s,o=b.dataset.o;const q=getQty(s,o);if(q>0)setQty(s,o,q-1);render();}));root.querySelectorAll('.dom-sel').forEach(c=>c.addEventListener('click',()=>{const s=c.dataset.s,o=c.dataset.o;selectOnly(s,o);render();}));root.querySelectorAll('.dom-date').forEach(c=>c.addEventListener('click',()=>{selectedDate=c.dataset.date;selectedSlot=null;render();}));root.querySelectorAll('.dom-slot').forEach(c=>c.addEventListener('click',()=>{selectedSlot=c.dataset.id;render();}));root.querySelectorAll('.dom-tip').forEach(b=>b.addEventListener('click',()=>{tipAmount=parseInt(b.dataset.tip);render();}));root.querySelectorAll('.dom-comment').forEach(ta=>ta.addEventListener('input',e=>{optionComments[e.target.dataset.o]=e.target.value;}));root.querySelectorAll('input').forEach(inp=>{if(inp.id==='verify-zip'){inp.addEventListener('input',e=>{customer.zip=e.target.value.replace(/\D/g,'');const isValid=/^\d{5}$/.test(customer.zip);const inArea=isValid&&DENVER_ZIPS.has(customer.zip);const btn=root.querySelector('#btn-verify-zip');if(btn){btn.disabled=!inArea;btn.style.cssText=inArea?S.btnPri:S.btnDis;}render();});}else if(inp.id==='c-fn')inp.addEventListener('input',e=>{customer.first_name=e.target.value;});else if(inp.id==='c-ln')inp.addEventListener('input',e=>{customer.last_name=e.target.value;});else if(inp.id==='c-em')inp.addEventListener('input',e=>{customer.email=e.target.value;});else if(inp.id==='c-ph')inp.addEventListener('input',e=>{customer.phone=e.target.value;});else if(inp.id==='c-ad')inp.addEventListener('input',e=>{customer.address=e.target.value;});else if(inp.id==='c-zip')inp.addEventListener('input',e=>{customer.zip=e.target.value.replace(/\D/g,'');});});}
+function goNext(){const steps=flowSteps();do{stepIdx++;}while(stepIdx<steps.length&&shouldSkip(steps[stepIdx]));if(stepIdx>=steps.length)return;if(steps[stepIdx]==='slots')fetchSlots();render();}
+function goBack(){const steps=flowSteps();do{stepIdx--;}while(stepIdx>=0&&shouldSkip(steps[stepIdx]));if(stepIdx<0)stepIdx=0;render();}
+function fetchSlots(){const duration=Math.ceil((totalTVs()*90)/60)*60;fetch(`${API_BASE}/slots?territory_id=${TERRITORY_ID}&duration=${duration}&days=14`).then(r=>r.json()).then(d=>{slotsByDate={};if(d.days){for(const day of d.days){if(day.date&&day.timeslots){slotsByDate[day.date]=day.timeslots.map(t=>({id:t.id,arrival_window:t.arrival_window}));}}}render();}).catch(e=>{console.error('[widget] fetchSlots error:',e);render();});}
+function doSubmit(root){const fnEl=root.querySelector('#c-fn'),fn=(fnEl?.value||'').trim();const emEl=root.querySelector('#c-em'),em=(emEl?.value||'').trim();const phEl=root.querySelector('#c-ph'),ph=(phEl?.value||'').trim();const adEl=root.querySelector('#c-ad'),ad=(adEl?.value||'').trim();if(!fn||!em||!ph||!ad){alert('Please fill in all fields.');return;}if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){alert('Invalid email.');return;}const zbk_selections=[];for(const sid in selections){if(sid.startsWith('__'))continue;for(const sel of selections[sid]){const opt={option_id:sel.option_id,quantity:sel.quantity};if(optionComments[sel.option_id])opt.comment=optionComments[sel.option_id];zbk_selections.push(opt);}}const kind=selectedService==='tv'?'booking':'quote';const payload={kind,territory_id:TERRITORY_ID,service_id:selectedService==='tv'?TV.service_id:QUOTES[selectedService].service_id,selectedSlot:selectedService==='tv'?selectedSlot:null,customer:{first_name:fn,last_name:(root.querySelector('#c-ln')?.value||'').trim(),email:em,phone:ph,address:ad,zip:customer.zip},city:LOCATION.city,state:LOCATION.state,zbk_selections,};if(selectedService==='tv'&&_stripe&&_stripeCard){_stripe.createPaymentMethod({type:'card',card:_stripeCard}).then(r=>{if(r.error){alert('Card error: '+r.error.message);return;}payload.payment_method_id=r.paymentMethod.id;submitToAPI(payload);}).catch(e=>{alert('Card processing failed.');});}else{submitToAPI(payload);}}
+function submitToAPI(payload){fetch(`${API_BASE}/book`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(r=>r.json()).then(d=>{if(!d.success&&d.error){alert('Booking failed: '+(d.error||'Unknown error'));return;}const kind=payload.kind;const booking={kind,service:selectedService,firstName:payload.customer.first_name,name:`${payload.customer.first_name} ${payload.customer.last_name}`,email:payload.customer.email,phone:payload.customer.phone,address:payload.customer.address,city:payload.city,state:payload.state,zip:payload.customer.zip,describe:describeText,lines:[],total:calcTotal(),tip:tipAmount,jobId:d.job_id||d.id,ts:new Date().toISOString(),};if(kind==='booking'){booking.dateISO=selectedDate;const df=fmtDate(selectedDate);booking.dateLong=`${df.long}, ${df.date}`;const slot=slotsByDate[selectedDate]?.find(s=>s.id===selectedSlot);booking.timeWindow=slot?.arrival_window||'';for(const sec of TV.sections){for(const sel of(selections[sec.id]||[])){const opt=sec.options.find(o=>o.id===sel.option_id);if(opt){booking.lines.push({label:opt.label,qty:sel.quantity,price:opt.price,total:opt.price*sel.quantity});}}}}localStorage.setItem('doms_booking',JSON.stringify(booking));window.location.href=THANKYOU_URL;}).catch(e=>{console.error('[widget] submit error:',e);alert('Submission failed. Please try again.');});}
+function ensureContainer(){const outer=document.createElement('div');outer.style.cssText='display:flex!important;justify-content:center!important;width:100%!important;padding:20px!important;box-sizing:border-box!important;';const inner=document.createElement('div');inner.id=TARGET_ID;inner.style.cssText='max-width:580px!important;width:100%!important;';outer.appendChild(inner);const target=document.body||document.documentElement;target.appendChild(outer);return inner;}
+function boot(){const link=document.createElement('link');link.rel='stylesheet';link.href='https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap';document.head.appendChild(link);if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',()=>{ensureContainer();render();});}else{ensureContainer();render();}}
+boot();
+})();
