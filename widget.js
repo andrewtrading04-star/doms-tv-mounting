@@ -15,9 +15,7 @@
   // ⬇️ Must match your Vercel project URL (see install guide). No trailing slash.
   const API_BASE     = 'https://doms-tv-mounting.vercel.app/api';
   const TARGET_ID    = 'doms-widget';
-  // ⬇️ Replace with Dom's REAL Stripe publishable key (starts with pk_live_… ~107 chars).
-  //    The value you gave (mk_…) is NOT a valid Stripe key. Until this is correct the
-  //    card box won't render, but bookings will still complete (card isn't sent to Zenbooker).
+  // ⬇️ Replace with Dom's REAL Stripe publishable key (starts with pk_live_ ~107 chars).
   const STRIPE_KEY   = 'pk_live_51SaLliBcfV1Ql8vm145iBKNLVv5TVxisWTkWaUl3LrHPBJMGVEnIhGlfuBEnWHf7ElWQ5jL8EoxSowqWTqKvGGJA00OLp7jIAG';
   const THANKYOU_URL = 'https://www.domstvmounting.com/thank-you';
   const TERRITORY_ID = '1764781142653x839348760756411600'; // Denver (only territory)
@@ -108,7 +106,7 @@
       },
       {
         stepKey:'dismount', id:'1764782188853x511586073383272450',
-        title:'Guaranteed Dismount Service', subtitle:'',
+        title:'Removal Service', subtitle:'',
         type:'single_select', required:true,
         options:[
           {id:'1764782188853x808798292635025400',label:'Guaranteed Dismount Service',       price:35},
@@ -228,7 +226,6 @@
   }
   function canHideBehindWall(){ return hasDrywall(); }
 
-  // Denver-only, single tech (operates like Houston) → never force 2 techs.
   function shouldSkip(k){
     if(k==='bracket'){
       const onlyFrame=isFrameTV&&!(selections['__frame_type']||[]).includes('regular');
@@ -237,7 +234,7 @@
     if(k==='lifting'){
       const cat=getMaxSizeCat();
       if(cat==='small')return true;
-      if(cat==='large')return true; // single-tech model: no lifting upsell for XL
+      if(cat==='large')return true;
     }
     return false;
   }
@@ -265,7 +262,7 @@
   function ensureStripe(){
     return new Promise(resolve=>{
       if(_stripe){resolve();return;}
-      if(!STRIPE_KEY||/REPLACE_ME/.test(STRIPE_KEY)||!/^pk_/.test(STRIPE_KEY)){resolve();return;} // invalid key → skip
+      if(!STRIPE_KEY||/REPLACE_ME/.test(STRIPE_KEY)||!/^pk_/.test(STRIPE_KEY)){resolve();return;}
       function init(){
         try{
           _stripe=window.Stripe(STRIPE_KEY);
@@ -487,8 +484,8 @@
     const reg=hasRegularTV();
     const visible=sec.options.filter(o=>{
       if(o.forSize==='frame')return isFrameTV;
-      if(o.forSize==='any')return reg;        // "own bracket"
-      if(o.forSize==='standard')return reg;   // all bracket types for any regular TV size
+      if(o.forSize==='any')return reg;
+      if(o.forSize==='standard')return reg;
       return true;
     });
     const banner=brks<tvs
@@ -808,6 +805,10 @@
     root.querySelector('#btn-prev')?.addEventListener('click',()=>goBack());
     root.querySelector('#btn-next')?.addEventListener('click',()=>goNext());
     root.querySelector('#btn-submit')?.addEventListener('click',()=>doSubmit(root));
+    root.querySelector('#btn-verify-zip')?.addEventListener('click',()=>{
+      if(DENVER_ZIPS.has(customer.zip)){zipVerified=true;stepIdx=0;goNext();}
+    });
+    root.querySelector('#btn-back-zip')?.addEventListener('click',()=>{zipVerified=false;stepIdx=0;render();});
     root.querySelector('#cal-prev')?.addEventListener('click',()=>{calMonth--;if(calMonth<0){calMonth=11;calYear--;}render();});
     root.querySelector('#cal-next')?.addEventListener('click',()=>{calMonth++;if(calMonth>11){calMonth=0;calYear++;}render();});
     root.querySelector('#btn-dis-yes')?.addEventListener('click',()=>{const s=getSec('dismount');if(s)selectOnly(s.id,s.options[0].id);render();});
@@ -818,7 +819,7 @@
       describeText=e.target.value;
       const nb=root.querySelector('#btn-next'), on=describeText.trim().length>0;
       if(nb){nb.disabled=!on;nb.style.cssText=on?S.btnPri:S.btnDis;}
-      e.target.style.borderColor=on?BLUE:LINE; // mirror the focus-state border
+      e.target.style.borderColor=on?BLUE:LINE;
     });
 
     root.querySelectorAll('.dom-tv-type').forEach(c=>c.addEventListener('click',()=>{
@@ -832,4 +833,219 @@
       setQty(serviceConfig.frameBracketSectionId,serviceConfig.frameBracketOptionId,onlyFrame?(totalTVs()||1):0);
       render();
     }));
-    root.quer
+
+    root.querySelectorAll('.dom-inc').forEach(b=>b.addEventListener('click',e=>{
+      const s=b.dataset.s, o=b.dataset.o;
+      setQty(s,o,getQty(s,o)+1);
+      render();
+    }));
+    root.querySelectorAll('.dom-dec').forEach(b=>b.addEventListener('click',e=>{
+      const s=b.dataset.s, o=b.dataset.o;
+      const q=getQty(s,o); if(q>0)setQty(s,o,q-1);
+      render();
+    }));
+    root.querySelectorAll('.dom-sel').forEach(c=>c.addEventListener('click',()=>{
+      const s=c.dataset.s, o=c.dataset.o;
+      selectOnly(s,o);
+      render();
+    }));
+    root.querySelectorAll('.dom-date').forEach(c=>c.addEventListener('click',()=>{
+      selectedDate=c.dataset.date;
+      selectedSlot=null;
+      render();
+    }));
+    root.querySelectorAll('.dom-slot').forEach(c=>c.addEventListener('click',()=>{
+      selectedSlot=c.dataset.id;
+      render();
+    }));
+    root.querySelectorAll('.dom-tip').forEach(b=>b.addEventListener('click',()=>{
+      tipAmount=parseInt(b.dataset.tip);
+      render();
+    }));
+    root.querySelectorAll('.dom-comment').forEach(ta=>ta.addEventListener('input',e=>{
+      optionComments[e.target.dataset.o]=e.target.value;
+    }));
+    root.querySelectorAll('input').forEach(inp=>{
+      if(inp.id==='verify-zip'){
+        inp.addEventListener('input',e=>{
+          customer.zip=e.target.value.replace(/\D/g,'');
+          const isValid=/^\d{5}$/.test(customer.zip);
+          const inArea=isValid&&DENVER_ZIPS.has(customer.zip);
+          const btn=root.querySelector('#btn-verify-zip');
+          if(btn){btn.disabled=!inArea;btn.style.cssText=inArea?S.btnPri:S.btnDis;}
+          render();
+        });
+      }
+      else if(inp.id==='c-fn') inp.addEventListener('input',e=>{customer.first_name=e.target.value;});
+      else if(inp.id==='c-ln') inp.addEventListener('input',e=>{customer.last_name=e.target.value;});
+      else if(inp.id==='c-em') inp.addEventListener('input',e=>{customer.email=e.target.value;});
+      else if(inp.id==='c-ph') inp.addEventListener('input',e=>{customer.phone=e.target.value;});
+      else if(inp.id==='c-ad') inp.addEventListener('input',e=>{customer.address=e.target.value;});
+      else if(inp.id==='c-zip') inp.addEventListener('input',e=>{customer.zip=e.target.value.replace(/\D/g,'');});
+    });
+  }
+
+  /* ─── Navigation ────────────────────────────────────────────────── */
+  function goNext(){
+    const steps=flowSteps();
+    do{ stepIdx++; }while(stepIdx<steps.length&&shouldSkip(steps[stepIdx]));
+    if(stepIdx>=steps.length) return;
+    if(steps[stepIdx]==='slots') fetchSlots();
+    render();
+  }
+  function goBack(){
+    const steps=flowSteps();
+    do{ stepIdx--; }while(stepIdx>=0&&shouldSkip(steps[stepIdx]));
+    if(stepIdx<0) stepIdx=0;
+    render();
+  }
+
+  /* ─── Fetch timeslots ───────────────────────────────────────────── */
+  function fetchSlots(){
+    const tvSec=serviceConfig.sections.find(s=>s.stepKey==='size');
+    const duration=Math.ceil((totalTVs()*90)/60)*60;
+    fetch(`${API_BASE}/slots?territory_id=${TERRITORY_ID}&duration=${duration}&days=14`)
+      .then(r=>r.json())
+      .then(d=>{
+        slotsByDate={};
+        if(d.days){
+          for(const day of d.days){
+            if(day.date&&day.timeslots){
+              slotsByDate[day.date]=day.timeslots.map(t=>({id:t.id,arrival_window:t.arrival_window}));
+            }
+          }
+        }
+        render();
+      })
+      .catch(e=>{
+        console.error('[widget] fetchSlots error:',e);
+        render();
+      });
+  }
+
+  /* ─── Submit booking/quote ──────────────────────────────────────── */
+  function doSubmit(root){
+    const fnEl=root.querySelector('#c-fn'), fn=(fnEl?.value||'').trim();
+    const emEl=root.querySelector('#c-em'), em=(emEl?.value||'').trim();
+    const phEl=root.querySelector('#c-ph'), ph=(phEl?.value||'').trim();
+    const adEl=root.querySelector('#c-ad'), ad=(adEl?.value||'').trim();
+    if(!fn||!em||!ph||!ad){alert('Please fill in all fields.');return;}
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){alert('Invalid email.');return;}
+
+    const zbk_selections=[];
+    for(const sid in selections){
+      if(sid.startsWith('__')) continue;
+      for(const sel of selections[sid]){
+        const opt={option_id:sel.option_id,quantity:sel.quantity};
+        if(optionComments[sel.option_id])opt.comment=optionComments[sel.option_id];
+        zbk_selections.push(opt);
+      }
+    }
+
+    const kind=selectedService==='tv'?'booking':'quote';
+    const payload={
+      kind,
+      territory_id:TERRITORY_ID,
+      service_id:selectedService==='tv'?TV.service_id:QUOTES[selectedService].service_id,
+      selectedSlot:selectedService==='tv'?selectedSlot:null,
+      customer:{first_name:fn,last_name:(root.querySelector('#c-ln')?.value||'').trim(),email:em,phone:ph,address:ad,zip:customer.zip},
+      city:LOCATION.city,
+      state:LOCATION.state,
+      zbk_selections,
+    };
+
+    if(selectedService==='tv'&&_stripe&&_stripeCard){
+      _stripe.createPaymentMethod({type:'card',card:_stripeCard}).then(r=>{
+        if(r.error){alert('Card error: '+r.error.message);return;}
+        payload.payment_method_id=r.paymentMethod.id;
+        submitToAPI(payload);
+      }).catch(e=>{alert('Card processing failed.');});
+    }else{
+      submitToAPI(payload);
+    }
+  }
+
+  function submitToAPI(payload){
+    fetch(`${API_BASE}/book`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+      .then(r=>r.json())
+      .then(d=>{
+        if(!d.success&&d.error){alert('Booking failed: '+(d.error||'Unknown error'));return;}
+        const kind=payload.kind;
+        const booking={
+          kind,
+          service:selectedService,
+          firstName:payload.customer.first_name,
+          name:`${payload.customer.first_name} ${payload.customer.last_name}`,
+          email:payload.customer.email,
+          phone:payload.customer.phone,
+          address:payload.customer.address,
+          city:payload.city,
+          state:payload.state,
+          zip:payload.customer.zip,
+          describe:describeText,
+          lines:[],
+          total:calcTotal(),
+          tip:tipAmount,
+          jobId:d.job_id||d.id,
+          ts:new Date().toISOString(),
+        };
+        if(kind==='booking'){
+          booking.dateISO=selectedDate;
+          const df=fmtDate(selectedDate);
+          booking.dateLong=`${df.long}, ${df.date}`;
+          const slot=slotsByDate[selectedDate]?.find(s=>s.id===selectedSlot);
+          booking.timeWindow=slot?.arrival_window||'';
+          for(const sec of TV.sections){
+            for(const sel of(selections[sec.id]||[])){
+              const opt=sec.options.find(o=>o.id===sel.option_id);
+              if(opt){
+                booking.lines.push({label:opt.label,qty:sel.quantity,price:opt.price,total:opt.price*sel.quantity});
+              }
+            }
+          }
+        }
+        localStorage.setItem('doms_booking',JSON.stringify(booking));
+        window.location.href=THANKYOU_URL;
+      })
+      .catch(e=>{
+        console.error('[widget] submit error:',e);
+        alert('Submission failed. Please try again.');
+      });
+  }
+
+  /* ─── Bootstrap ─────────────────────────────────────────────────── */
+  function ensureContainer(){
+    let cont=document.getElementById(TARGET_ID);
+    if(!cont){
+      const outer=document.createElement('div');
+      outer.style.cssText=`display:flex!important;justify-content:center!important;width:100%!important;padding:20px!important;`;
+      const inner=document.createElement('div');
+      inner.id=TARGET_ID;
+      inner.style.cssText=`max-width:580px!important;width:100%!important;`;
+      outer.appendChild(inner);
+      const target=document.querySelector('body')||document.documentElement;
+      target.appendChild(outer);
+      cont=inner;
+    }
+    return cont;
+  }
+
+  function boot(){
+    const link=document.createElement('link');
+    link.rel='stylesheet';
+    link.href='https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap';
+    document.head.appendChild(link);
+
+    if(document.readyState==='loading'){
+      document.addEventListener('DOMContentLoaded',()=>{
+        const c=ensureContainer();
+        render();
+      });
+    }else{
+      const c=ensureContainer();
+      render();
+    }
+  }
+
+  boot();
+})();
