@@ -60,22 +60,74 @@ export default async function handler(req, res) {
     }
 
     const jobId = data.job_id || data.id;
+    const zbkCustomerId = data.customer_id || data.customer?.id || null;
 
-    // If payment method was saved, add it as a note on the job
-    if (payment_method_id && jobId) {
+    // ---- Save the card on file in Stripe so it appears as a payment method and can be charged later ----
+    let cardNote = '';
+    if (payment_method_id) {
+      const SK = process.env.STRIPE_SECRET_KEY;
+      if (!SK) {
+        cardNote = `Payment method captured (${payment_method_id}) but STRIPE_SECRET_KEY is not set on the server, so the card was NOT saved on file.`;
+      } else {
+        const sAuth = { Authorization: `Bearer ${SK}`, 'Content-Type': 'application/x-www-form-urlencoded' };
+        try {
+          // 1) Prefer the Zenbooker customer's existing Stripe customer (returning customer) so the card shows in Zenbooker.
+          let stripeCustomerId = null;
+          try {
+            const cr = await fetch(`https://api.zenbooker.com/v1/customers?email=${encodeURIComponent(customer.email)}&limit=10`, { headers: { Authorization: `Bearer ${ZBK_KEY}` } });
+            const cj = await cr.json().catch(() => ({}));
+            const results = cj.results || cj.data || [];
+            const match = results.find(c => c.id === zbkCustomerId && c.stripe_customer_id)
+                       || results.find(c => (c.email || '').toLowerCase() === (customer.email || '').toLowerCase() && c.stripe_customer_id);
+            if (match) stripeCustomerId = match.stripe_customer_id;
+          } catch (e) { /* lookup is best-effort */ }
+
+          // 2) Otherwise create a Stripe customer on this account.
+          if (!stripeCustomerId) {
+            const cb = new URLSearchParams();
+            cb.set('email', customer.email || '');
+            if (fullName) cb.set('name', fullName);
+            if (customer.phone) cb.set('phone', customer.phone);
+            cb.set('description', 'Booking widget customer');
+            const ccr = await fetch('https://api.stripe.com/v1/customers', { method: 'POST', headers: sAuth, body: cb });
+            const cc = await ccr.json();
+            if (!ccr.ok) throw new Error(cc?.error?.message || 'Stripe customer create failed');
+            stripeCustomerId = cc.id;
+          }
+
+          // 3) Attach the payment method to that Stripe customer and make it the default.
+          const ab = new URLSearchParams(); ab.set('customer', stripeCustomerId);
+          const ar = await fetch(`https://api.stripe.com/v1/payment_methods/${payment_method_id}/attach`, { method: 'POST', headers: sAuth, body: ab });
+          const pm = await ar.json();
+          if (!ar.ok) throw new Error(pm?.error?.message || 'Attach failed');
+
+          const db = new URLSearchParams(); db.set('invoice_settings[default_payment_method]', payment_method_id);
+          await fetch(`https://api.stripe.com/v1/customers/${stripeCustomerId}`, { method: 'POST', headers: sAuth, body: db });
+
+          const brand = pm?.card?.brand || 'card';
+          const last4 = pm?.card?.last4 || '????';
+          cardNote = `Card on file: ${brand} ending ${last4}. Charge in Stripe -> Customers -> ${stripeCustomerId} (payment method ${payment_method_id}).`;
+        } catch (e) {
+          console.error('[book] stripe save error:', e.message);
+          cardNote = `Payment method captured (${payment_method_id}) but saving on file failed: ${e.message}`;
+        }
+      }
+    }
+
+    // Write a note on the job describing the card-on-file status.
+    if (jobId && cardNote) {
       try {
         await fetch(`https://api.zenbooker.com/v1/jobs/${jobId}/notes`, {
           method:  'POST',
           headers: { Authorization: `Bearer ${ZBK_KEY}`, 'Content-Type': 'application/json' },
-          body:    JSON.stringify({ text: `Saved payment method: ${payment_method_id}` }),
+          body:    JSON.stringify({ text: cardNote }),
         });
       } catch (noteErr) {
-        console.warn('[book] Failed to add payment note:', noteErr.message);
-        // Don't fail the whole booking if the note fails
+        console.warn('[book] Failed to add note:', noteErr.message);
       }
     }
 
-    return res.status(200).json({ success: true, job_id: jobId, status: data.status });
+    return res.status(200).json({ success: true, job_id: jobId, status: data.status, card_saved: /Card on file/.test(cardNote) });
   } catch (err) {
     console.error('[book] fetch error:', err.message);
     return res.status(500).json({ error: 'Booking request failed', message: err.message });
