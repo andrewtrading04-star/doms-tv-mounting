@@ -2,35 +2,22 @@
  * Dom's TV Mounting — Booking Widget v1
  * Denver only. Three services: TV Mounting (bookable), Handyman (request),
  * Home Theater (quote request). Light theme, slate-blue brand.
- *
- *  ┌─────────────────────────────────────────────────────────────────┐
- *  │  CONFIG — the only lines you may ever need to change             │
- *  └─────────────────────────────────────────────────────────────────┘
  */
 (function () {
   'use strict';
 
-  const SELF_SCRIPT = document.currentScript;
-
-  // ⬇️ Must match your Vercel project URL (see install guide). No trailing slash.
   const API_BASE     = 'https://doms-tv-mounting.vercel.app/api';
   const TARGET_ID    = 'doms-widget';
-  // ⬇️ Replace with Dom's REAL Stripe publishable key (starts with pk_live_ ~107 chars).
   const STRIPE_KEY   = 'pk_live_51SaLliBcfV1Ql8vm145iBKNLVv5TVxisWTkWaUl3LrHPBJMGVEnIhGlfuBEnWHf7ElWQ5jL8EoxSowqWTqKvGGJA00OLp7jIAG';
   const THANKYOU_URL = 'https://www.domstvmounting.com/thank-you';
-  const TERRITORY_ID = '1764781142653x839348760756411600'; // Denver (only territory)
+  const TERRITORY_ID = '1764781142653x839348760756411600';
   const LOCATION     = { city: 'Denver', state: 'CO' };
 
-  /* ───────────────────────────────────────────────────────────────────
-     SERVICE DATA  (pulled live from Dom's Zenbooker — real IDs & prices)
-     ─────────────────────────────────────────────────────────────────── */
-
-  // TV Mounting — full bookable flow
   const TV = {
     service_id: '1764781543375x970898546217713700',
     frameBracketSectionId: '1764781695979x983922491612725200',
     frameBracketOptionId:  '1764781794581x623799211951128600',
-    oneConnectSectionId:   '1764782250840x158482009487573000', // extras section
+    oneConnectSectionId:   '1764782250840x158482009487573000',
     oneConnectOptionId:    '1764782250840x266842303435112450',
     sections: [
       {
@@ -137,7 +124,6 @@
     ]
   };
 
-  // Quote / request services (no card, no timeslot, free-text intake)
   const QUOTES = {
     handyman: {
       service_id:'1772707009158x823589363475393000',
@@ -146,8 +132,6 @@
       sub:'Describe your project — the more detail you give, the better we can help.',
       placeholder:'Example: Patch a 4-inch hole in the hallway, assemble an IKEA dresser, hang 3 shelves and a mirror…',
       cta:'Request My Handyman',
-      done:'Request received!',
-      doneSub:"Thanks! We've got your handyman request and will reach out shortly to confirm the details and schedule a time.",
     },
     hometheater: {
       service_id:'1779489954923x916667929316261400',
@@ -156,36 +140,30 @@
       sub:'Share what you have and what you want installed. The more detail, the better the quote.',
       placeholder:'Example: I have a projector, a 120-inch screen, and a 7.1 surround system I need installed and calibrated…',
       cta:'Request My Quote',
-      done:'Quote request received!',
-      doneSub:"Thanks! We'll review your project details and get back to you shortly with a custom quote.",
     },
   };
 
-  // Flow definitions per chosen service
   const FLOWS = {
     tv:          ['frame_tv','size','bracket','fireplace','surface','wires','lifting','dismount','extras','terms','slots','customer'],
     handyman:    ['describe','customer'],
     hometheater: ['describe','customer'],
   };
 
-  /* ─── State ─────────────────────────────────────────────────────── */
-  let selectedService=null;            // 'tv' | 'handyman' | 'hometheater'
+  let selectedService=null;
   let zipVerified=false;
-  let serviceConfig=null;              // = TV when selectedService==='tv'
+  let serviceConfig=null;
   let stepIdx=0, isFrameTV=false;
   let selections={}, selectedSlot=null;
   let slotsByDate={}, selectedDate=null, calYear=null, calMonth=null;
   let describeText='';
   let customer={first_name:'',last_name:'',email:'',phone:'',address:'',zip:''};
   let tipAmount=0;
-  let optionComments={};               // { [optionId]: "free text" }
+  let optionComments={};
   let _stripe=null,_stripeElements=null,_stripeCard=null;
 
-  /* ─── Brand / theme ─────────────────────────────────────────────── */
   const BLUE='#0047AB', BLUE_DK='#003580', TINT='#EEF5FB';
   const INK='#334455', MUTE='#777777', LINE='#D6DEE7', BLUE_LIGHT='#5199E4';
 
-  /* ─── Helpers ───────────────────────────────────────────────────── */
   function flowSteps(){
     let steps=['zip_verify'];
     if(zipVerified) steps.push('service');
@@ -284,10 +262,9 @@
     const el=document.getElementById('stripe-card-element');
     if(!el)return;
     if(_stripeCard){_stripeCard.mount(el);}
-    else{el.innerHTML=`<div style="color:${MUTE}!important;font-size:13px!important;">Card entry will appear here once your Stripe key is set. You can still complete your booking.</div>`;}
+    else{el.innerHTML=`<div style="color:${MUTE}!important;font-size:13px!important;">Card entry will appear here once your Stripe key is set.</div>`;}
   }
 
-  /* ─── Styles (light theme) ──────────────────────────────────────── */
   const S={
     host:`display:block!important;visibility:visible!important;position:relative!important;z-index:999999!important;background:#fff!important;border:1px solid ${LINE}!important;border-radius:14px!important;padding:28px!important;box-shadow:0 12px 34px rgba(33,74,110,0.10)!important;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif!important;box-sizing:border-box!important;color:${INK}!important;`,
     bar:`background:${LINE}!important;height:6px!important;border-radius:3px!important;margin-bottom:16px!important;overflow:hidden!important;display:block!important;`,
@@ -310,7 +287,6 @@
     price:p=>p>0?` <span style="color:${MUTE}!important;font-size:12px!important;">(+$${p})</span>`:'',
   };
 
-  /* ─── Render ────────────────────────────────────────────────────── */
   function render(){
     const root=document.getElementById(TARGET_ID); if(!root)return;
     root.style.cssText=S.host;
@@ -343,7 +319,6 @@
     if(key==='customer'&&selectedService==='tv')ensureStripe().then(mountStripeCard);
   }
 
-  /* ─── Denver metro ZIP set ─────────────────────────────────────── */
   const DENVER_ZIPS=new Set(['80001','80002','80003','80004','80005','80006','80007',
     '80010','80011','80012','80013','80014','80015','80016','80017','80018','80019',
     '80020','80021','80022','80023','80024','80025','80026','80027','80030','80031',
@@ -368,25 +343,14 @@
     '80465','80401',
     '80516','80601','80602','80603','80614','80640','80642','80643','80654']);
 
-  /* ─── Step: ZIP verification ───────────────────────────────────── */
   function bZipVerify(){
     const zip=customer.zip||'';
     const isValid=/^\d{5}$/.test(zip);
     const inArea=isValid&&DENVER_ZIPS.has(zip);
     const notInArea=isValid&&!inArea;
-    return `
-      <h1 style="${S.h1};font-size:24px!important;">Do we service your area?</h1>
-      <input type="text" id="verify-zip" style="${S.input};margin-top:16px!important;" placeholder="ZIP Code" maxlength="5" inputmode="numeric" value="${zip}" autocomplete="postal-code">
-      <div id="zip-msg" style="min-height:40px!important;margin-bottom:8px!important;">
-        ${notInArea?`<div style="background:#FFE5E5!important;border:1px solid #FF9999!important;border-radius:8px!important;padding:12px!important;font-size:13px!important;color:#C53030!important;"><strong>Outside our service area.</strong> We currently serve Denver &amp; the surrounding metro.</div>`:''}
-        ${inArea?`<div style="background:#D6E8F7!important;border:1px solid ${BLUE_LIGHT}!important;border-radius:8px!important;padding:12px!important;font-size:13px!important;color:${BLUE_DK}!important;"><strong>&#10003; Great news!</strong> We service your area.</div>`:''}
-      </div>
-      <div style="text-align:center!important;">
-        <button id="btn-verify-zip" style="${inArea?S.btnPri:S.btnDis}" ${!inArea?'disabled':''}>Continue &#8594;</button>
-      </div>`;
+    return `<h1 style="${S.h1};font-size:24px!important;">Do we service your area?</h1><input type="text" id="verify-zip" style="${S.input};margin-top:16px!important;" placeholder="ZIP Code" maxlength="5" inputmode="numeric" value="${zip}" autocomplete="postal-code"><div id="zip-msg" style="min-height:40px!important;margin-bottom:8px!important;">${notInArea?`<div style="background:#FFE5E5!important;border:1px solid #FF9999!important;border-radius:8px!important;padding:12px!important;font-size:13px!important;color:#C53030!important;"><strong>Outside our service area.</strong> We currently serve Denver &amp; the surrounding metro.</div>`:''}${inArea?`<div style="background:#D6E8F7!important;border:1px solid ${BLUE_LIGHT}!important;border-radius:8px!important;padding:12px!important;font-size:13px!important;color:${BLUE_DK}!important;"><strong>&#10003; Great news!</strong> We service your area.</div>`:''}</div><div style="text-align:center!important;"><button id="btn-verify-zip" style="${inArea?S.btnPri:S.btnDis}" ${!inArea?'disabled':''}>Continue &#8594;</button></div>`;
   }
 
-  /* ─── Step: service selector ────────────────────────────────────── */
   function bService(){
     const ICON_TV=`<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="${BLUE}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>`;
     const ICON_HM=`<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="${BLUE}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2-2 2.6-2.6z"/></svg>`;
@@ -396,296 +360,99 @@
     const tName=`font-size:16px!important;font-weight:700!important;color:${INK}!important;display:block!important;margin-bottom:2px!important;`;
     const tDesc=`font-size:13px!important;color:${MUTE}!important;display:block!important;line-height:1.5!important;`;
     const arrow=`margin-left:auto!important;color:${BLUE}!important;font-size:24px!important;font-weight:600!important;flex-shrink:0!important;`;
-    return `
-      <h1 style="${S.h1};font-size:24px!important;">Choose Your Service</h1>
-      <p style="${S.sub}">Select what you need and we'll get you set up</p>
-      <div class="dom-svc" data-svc="tv" style="${cardCss}">
-        <span style="${iconWrap}">${ICON_TV}</span>
-        <span><span style="${tName}">📺 TV Mounting</span><span style="${tDesc}">Book instantly & pick your time</span></span>
-        <span style="${arrow}">›</span>
-      </div>
-      <div class="dom-svc" data-svc="handyman" style="${cardCss}">
-        <span style="${iconWrap}">${ICON_HM}</span>
-        <span><span style="${tName}">🔧 Handyman</span><span style="${tDesc}">Request a custom quote</span></span>
-        <span style="${arrow}">›</span>
-      </div>
-      <div class="dom-svc" data-svc="hometheater" style="${cardCss}">
-        <span style="${iconWrap}">${ICON_HT}</span>
-        <span><span style="${tName}">🎬 Home Theater</span><span style="${tDesc}">Get your setup quote</span></span>
-        <span style="${arrow}">›</span>
-      </div>
-      <div style="margin-top:20px!important;">
-        <button id="btn-back-zip" style="${S.btnSec}">← Change ZIP</button>
-      </div>`;
+    return `<h1 style="${S.h1};font-size:24px!important;">Choose Your Service</h1><p style="${S.sub}">Select what you need and we'll get you set up</p><div class="dom-svc" data-svc="tv" style="${cardCss}"><span style="${iconWrap}">${ICON_TV}</span><span><span style="${tName}">📺 TV Mounting</span><span style="${tDesc}">Book instantly &amp; pick your time</span></span><span style="${arrow}">›</span></div><div class="dom-svc" data-svc="handyman" style="${cardCss}"><span style="${iconWrap}">${ICON_HM}</span><span><span style="${tName}">🔧 Handyman</span><span style="${tDesc}">Request a custom quote</span></span><span style="${arrow}">›</span></div><div class="dom-svc" data-svc="hometheater" style="${cardCss}"><span style="${iconWrap}">${ICON_HT}</span><span><span style="${tName}">🎬 Home Theater</span><span style="${tDesc}">Get your setup quote</span></span><span style="${arrow}">›</span></div><div style="margin-top:20px!important;"><button id="btn-back-zip" style="${S.btnSec}">← Change ZIP</button></div>`;
   }
 
-  /* ─── Step: quote describe (handyman / home theater) ────────────── */
   function bDescribe(){
     const q=QUOTES[selectedService]; if(!q)return '';
     const ok=describeText.trim().length>0;
-    return `
-      <h1 style="${S.h1}">${q.title}</h1>
-      <p style="${S.sub}">${q.sub}</p>
-      <textarea id="dom-describe" rows="6" style="width:100%!important;padding:14px!important;background:#F7FAFC!important;border:1.5px solid ${ok?BLUE:LINE}!important;color:${INK}!important;border-radius:10px!important;font-size:15px!important;box-sizing:border-box!important;resize:vertical!important;font-family:inherit!important;line-height:1.5!important;margin-bottom:6px!important;" placeholder="${q.placeholder}">${describeText.replace(/</g,'&lt;')}</textarea>
-      <p style="font-size:12px!important;color:${MUTE}!important;margin:0 0 4px 0!important;">No payment now — we'll review and follow up with next steps.</p>
-      <div style="${S.actions}">
-        <button id="btn-prev" style="${S.btnSec}">← Back</button>
-        <button id="btn-next" style="${ok?S.btnPri:S.btnDis}" ${!ok?'disabled':''}>Continue →</button>
-      </div>`;
+    return `<h1 style="${S.h1}">${q.title}</h1><p style="${S.sub}">${q.sub}</p><textarea id="dom-describe" rows="6" style="width:100%!important;padding:14px!important;background:#F7FAFC!important;border:1.5px solid ${ok?BLUE:LINE}!important;color:${INK}!important;border-radius:10px!important;font-size:15px!important;box-sizing:border-box!important;resize:vertical!important;font-family:inherit!important;line-height:1.5!important;margin-bottom:6px!important;" placeholder="${q.placeholder}">${describeText.replace(/</g,'&lt;')}</textarea><p style="font-size:12px!important;color:${MUTE}!important;margin:0 0 4px 0!important;">No payment now — we'll review and follow up with next steps.</p><div style="${S.actions}"><button id="btn-prev" style="${S.btnSec}">← Back</button><button id="btn-next" style="${ok?S.btnPri:S.btnDis}" ${!ok?'disabled':''}>Continue →</button></div>`;
   }
 
-  /* ─── Step: frame TV ────────────────────────────────────────────── */
   function bFrameTV(){
     const frameOn=(selections['__frame_type']||[]).includes('frame');
     const regOn=(selections['__frame_type']||[]).includes('regular');
     const any=frameOn||regOn;
-    return `
-      <h1 style="${S.h1}">What kind of TV do you have?</h1>
-      <p style="${S.sub}">Select each TV type you're mounting. Smart frame TVs like Samsung Frame and LG Gallery come with their own bracket.</p>
-      <div class="dom-tv-type" data-type="frame" style="${S.card(frameOn)}">
-        <span>Samsung FrameTV or LG Gallery</span>
-        <span style="color:${frameOn?BLUE:'#A7B3BE'}!important;font-size:18px!important;">${frameOn?'✓':'☐'}</span>
-      </div>
-      <div class="dom-tv-type" data-type="regular" style="${S.card(regOn)}">
-        <span>Traditional TV</span>
-        <span style="color:${regOn?BLUE:'#A7B3BE'}!important;font-size:18px!important;">${regOn?'✓':'☐'}</span>
-      </div>
-      <div style="${S.actions}">
-        <button id="btn-prev" style="${S.btnSec}">← Back</button>
-        <button id="btn-next" style="${any?S.btnPri:S.btnDis}" ${!any?'disabled':''}>Continue →</button>
-      </div>`;
+    return `<h1 style="${S.h1}">What kind of TV do you have?</h1><p style="${S.sub}">Select each TV type you're mounting. Smart frame TVs like Samsung Frame and LG Gallery come with their own bracket.</p><div class="dom-tv-type" data-type="frame" style="${S.card(frameOn)}"><span>Samsung FrameTV or LG Gallery</span><span style="color:${frameOn?BLUE:'#A7B3BE'}!important;font-size:18px!important;">${frameOn?'✓':'☐'}</span></div><div class="dom-tv-type" data-type="regular" style="${S.card(regOn)}"><span>Traditional TV</span><span style="color:${regOn?BLUE:'#A7B3BE'}!important;font-size:18px!important;">${regOn?'✓':'☐'}</span></div><div style="${S.actions}"><button id="btn-prev" style="${S.btnSec}">← Back</button><button id="btn-next" style="${any?S.btnPri:S.btnDis}" ${!any?'disabled':''}>Continue →</button></div>`;
   }
 
-  /* ─── Step: size ────────────────────────────────────────────────── */
   function bSize(){
     const sec=getSec('size');
-    const opts=sec.options.map(o=>{
-      const q=getQty(sec.id,o.id);
-      return `<div style="${S.qRow(q>0)}">
-        <span style="flex:1!important;">${o.label}${S.price(o.price)}</span>
-        <div style="display:flex!important;align-items:center!important;gap:8px!important;flex-shrink:0!important;">
-          <button class="dom-dec" data-s="${sec.id}" data-o="${o.id}" style="${S.qBtn}">−</button>
-          <span style="${S.qNum}">${q}</span>
-          <button class="dom-inc" data-s="${sec.id}" data-o="${o.id}" style="${S.qBtn}">+</button>
-        </div></div>`;
-    }).join('');
+    const opts=sec.options.map(o=>{const q=getQty(sec.id,o.id);return `<div style="${S.qRow(q>0)}"><span style="flex:1!important;">${o.label}${S.price(o.price)}</span><div style="display:flex!important;align-items:center!important;gap:8px!important;flex-shrink:0!important;"><button class="dom-dec" data-s="${sec.id}" data-o="${o.id}" style="${S.qBtn}">−</button><span style="${S.qNum}">${q}</span><button class="dom-inc" data-s="${sec.id}" data-o="${o.id}" style="${S.qBtn}">+</button></div></div>`;}).join('');
     const ok=totalTVs()>0;
-    return `<h1 style="${S.h1}">${sec.title}</h1><p style="${S.sub}">${sec.subtitle}</p>${opts}
-      <div style="${S.actions}">
-        <button id="btn-prev" style="${S.btnSec}">← Back</button>
-        <button id="btn-next" style="${ok?S.btnPri:S.btnDis}" ${!ok?'disabled':''}>Continue →</button>
-      </div>`;
+    return `<h1 style="${S.h1}">${sec.title}</h1><p style="${S.sub}">${sec.subtitle}</p>${opts}<div style="${S.actions}"><button id="btn-prev" style="${S.btnSec}">← Back</button><button id="btn-next" style="${ok?S.btnPri:S.btnDis}" ${!ok?'disabled':''}>Continue →</button></div>`;
   }
 
-  /* ─── Step: bracket (qty must match TV count) ───────────────────── */
   function bBracket(){
     const sec=getSec('bracket');
     const tvs=totalTVs(), brks=(selections[sec.id]||[]).reduce((s,x)=>s+x.quantity,0);
     const reg=hasRegularTV();
-    const visible=sec.options.filter(o=>{
-      if(o.forSize==='frame')return isFrameTV;
-      if(o.forSize==='any')return reg;
-      if(o.forSize==='standard')return reg;
-      return true;
-    });
-    const banner=brks<tvs
-      ?`<div style="${S.info}">📺 You have <strong>${tvs} TV${tvs>1?'s':''}</strong> — select <strong>${tvs-brks}</strong> more bracket${tvs-brks>1?'s':''}.</div>`
-      :`<div style="${S.ok}">✓ All ${tvs} TV${tvs>1?'s':''} have a bracket assigned.</div>`;
-    const opts=visible.map(o=>{
-      const q=getQty(sec.id,o.id);
-      return `<div style="${S.qRow(q>0)}">
-        <span style="flex:1!important;">${o.label}${S.price(o.price)}</span>
-        <div style="display:flex!important;align-items:center!important;gap:8px!important;flex-shrink:0!important;">
-          <button class="dom-dec" data-s="${sec.id}" data-o="${o.id}" style="${S.qBtn}">−</button>
-          <span style="${S.qNum}">${q}</span>
-          <button class="dom-inc" data-s="${sec.id}" data-o="${o.id}" style="${S.qBtn}">+</button>
-        </div></div>`;
-    }).join('');
+    const visible=sec.options.filter(o=>{if(o.forSize==='frame')return isFrameTV;if(o.forSize==='any')return reg;if(o.forSize==='standard')return reg;return true;});
+    const banner=brks<tvs?`<div style="${S.info}">📺 You have <strong>${tvs} TV${tvs>1?'s':''}</strong> — select <strong>${tvs-brks}</strong> more bracket${tvs-brks>1?'s':''}.</div>`:`<div style="${S.ok}">✓ All ${tvs} TV${tvs>1?'s':''} have a bracket assigned.</div>`;
+    const opts=visible.map(o=>{const q=getQty(sec.id,o.id);return `<div style="${S.qRow(q>0)}"><span style="flex:1!important;">${o.label}${S.price(o.price)}</span><div style="display:flex!important;align-items:center!important;gap:8px!important;flex-shrink:0!important;"><button class="dom-dec" data-s="${sec.id}" data-o="${o.id}" style="${S.qBtn}">−</button><span style="${S.qNum}">${q}</span><button class="dom-inc" data-s="${sec.id}" data-o="${o.id}" style="${S.qBtn}">+</button></div></div>`;}).join('');
     const ok=brks===tvs&&tvs>0;
-    return `<h1 style="${S.h1}">${sec.title}</h1><p style="${S.sub}">You have ${tvs} TV${tvs>1?'s':''} — select ${tvs} bracket${tvs>1?'s':''} total.</p>${banner}${opts}
-      <div style="${S.actions}">
-        <button id="btn-prev" style="${S.btnSec}">← Back</button>
-        <button id="btn-next" style="${ok?S.btnPri:S.btnDis}" ${!ok?'disabled':''}>Continue →</button>
-      </div>`;
+    return `<h1 style="${S.h1}">${sec.title}</h1><p style="${S.sub}">You have ${tvs} TV${tvs>1?'s':''} — select ${tvs} bracket${tvs>1?'s':''} total.</p>${banner}${opts}<div style="${S.actions}"><button id="btn-prev" style="${S.btnSec}">← Back</button><button id="btn-next" style="${ok?S.btnPri:S.btnDis}" ${!ok?'disabled':''}>Continue →</button></div>`;
   }
 
-  /* ─── Step: generic qty (fireplace, surface) ────────────────────── */
   function bGeneric(sec){
     if(!sec)return '';
     const tvs=totalTVs();
     const total=(selections[sec.id]||[]).reduce((s,x)=>s+x.quantity,0);
     let banner='';
-    if(sec.enforceTVCount&&tvs>0){
-      banner=total<tvs
-        ?`<div style="${S.info}">📺 You have <strong>${tvs} TV${tvs>1?'s':''}</strong> — select options totalling ${tvs} (${total} of ${tvs} done).</div>`
-        :`<div style="${S.ok}">✓ All ${tvs} TV${tvs>1?'s':''} accounted for.</div>`;
-    }
-    const optsHtml=sec.options.map(o=>{
-      const q=getQty(sec.id,o.id);
-      return `<div style="${S.qRow(q>0)}">
-        <span style="flex:1!important;">${o.label}${S.price(o.price)}</span>
-        <div style="display:flex!important;align-items:center!important;gap:8px!important;flex-shrink:0!important;">
-          <button class="dom-dec" data-s="${sec.id}" data-o="${o.id}" style="${S.qBtn}">−</button>
-          <span style="${S.qNum}">${q}</span>
-          <button class="dom-inc" data-s="${sec.id}" data-o="${o.id}" style="${S.qBtn}">+</button>
-        </div></div>`;
-    }).join('');
+    if(sec.enforceTVCount&&tvs>0){banner=total<tvs?`<div style="${S.info}">📺 You have <strong>${tvs} TV${tvs>1?'s':''}</strong> — select options totalling ${tvs} (${total} of ${tvs} done).</div>`:`<div style="${S.ok}">✓ All ${tvs} TV${tvs>1?'s':''} accounted for.</div>`;}
+    const optsHtml=sec.options.map(o=>{const q=getQty(sec.id,o.id);return `<div style="${S.qRow(q>0)}"><span style="flex:1!important;">${o.label}${S.price(o.price)}</span><div style="display:flex!important;align-items:center!important;gap:8px!important;flex-shrink:0!important;"><button class="dom-dec" data-s="${sec.id}" data-o="${o.id}" style="${S.qBtn}">−</button><span style="${S.qNum}">${q}</span><button class="dom-inc" data-s="${sec.id}" data-o="${o.id}" style="${S.qBtn}">+</button></div></div>`;}).join('');
     const countOk=sec.enforceTVCount?(tvs===0||total===tvs):true;
     const ok=(!sec.required||total>0)&&countOk;
-    return `<h1 style="${S.h1}">${sec.title}</h1><p style="${S.sub}">${sec.subtitle}</p>${banner}${optsHtml}
-      <div style="${S.actions}">
-        <button id="btn-prev" style="${S.btnSec}">← Back</button>
-        <button id="btn-next" style="${ok?S.btnPri:S.btnDis}" ${!ok?'disabled':''}>Continue →</button>
-      </div>`;
+    return `<h1 style="${S.h1}">${sec.title}</h1><p style="${S.sub}">${sec.subtitle}</p>${banner}${optsHtml}<div style="${S.actions}"><button id="btn-prev" style="${S.btnSec}">← Back</button><button id="btn-next" style="${ok?S.btnPri:S.btnDis}" ${!ok?'disabled':''}>Continue →</button></div>`;
   }
 
-  /* ─── Step: wires ───────────────────────────────────────────────── */
   function bWires(){
     const sec=getSec('wires');
     const tvs=totalTVs();
-    const visibleOpts=sec.options.filter(o=>{
-      if(o.needsDrywall&&!canHideBehindWall())return false;
-      if(o.hideForFrame&&isFrameTV)return false;
-      return true;
-    });
-    if(isFrameTV&&hasDrywall()){
-      visibleOpts.push({id:serviceConfig.oneConnectOptionId,label:'Install Samsung Frame OneConnect box behind the TV',price:350,_altSection:serviceConfig.oneConnectSectionId});
-    }
+    const visibleOpts=sec.options.filter(o=>{if(o.needsDrywall&&!canHideBehindWall())return false;if(o.hideForFrame&&isFrameTV)return false;return true;});
+    if(isFrameTV&&hasDrywall()){visibleOpts.push({id:serviceConfig.oneConnectOptionId,label:'Install Samsung Frame OneConnect box behind the TV',price:350,_altSection:serviceConfig.oneConnectSectionId});}
     const wireTotal=(selections[sec.id]||[]).reduce((s,x)=>s+x.quantity,0);
-    const wireBanner=tvs>0
-      ?(wireTotal<tvs
-        ?`<div style="${S.info}">📺 You have <strong>${tvs} TV${tvs>1?'s':''}</strong> — select a wire option for each (${wireTotal} of ${tvs} done).</div>`
-        :`<div style="${S.ok}">✓ All ${tvs} TV${tvs>1?'s':''} have a wire option.</div>`)
-      :'';
-    const opts=visibleOpts.map(o=>{
-      const sid=o._altSection||sec.id;
-      const q=getQty(sid,o.id);
-      return `<div style="${S.qRow(q>0)}">
-        <span style="flex:1!important;">${o.label}${S.price(o.price)}</span>
-        <div style="display:flex!important;align-items:center!important;gap:8px!important;flex-shrink:0!important;">
-          <button class="dom-dec" data-s="${sid}" data-o="${o.id}" style="${S.qBtn}">−</button>
-          <span style="${S.qNum}">${q}</span>
-          <button class="dom-inc" data-s="${sid}" data-o="${o.id}" style="${S.qBtn}">+</button>
-        </div></div>`;
-    }).join('');
+    const wireBanner=tvs>0?(wireTotal<tvs?`<div style="${S.info}">📺 You have <strong>${tvs} TV${tvs>1?'s':''}</strong> — select a wire option for each (${wireTotal} of ${tvs} done).</div>`:`<div style="${S.ok}">✓ All ${tvs} TV${tvs>1?'s':''} have a wire option.</div>`):'';
+    const opts=visibleOpts.map(o=>{const sid=o._altSection||sec.id;const q=getQty(sid,o.id);return `<div style="${S.qRow(q>0)}"><span style="flex:1!important;">${o.label}${S.price(o.price)}</span><div style="display:flex!important;align-items:center!important;gap:8px!important;flex-shrink:0!important;"><button class="dom-dec" data-s="${sid}" data-o="${o.id}" style="${S.qBtn}">−</button><span style="${S.qNum}">${q}</span><button class="dom-inc" data-s="${sid}" data-o="${o.id}" style="${S.qBtn}">+</button></div></div>`;}).join('');
     const wireOk=tvs===0||wireTotal===tvs;
-    return `<h1 style="${S.h1}">${sec.title}</h1><p style="${S.sub}">Select one per TV.</p>${wireBanner}${opts}
-      <div style="${S.actions}">
-        <button id="btn-prev" style="${S.btnSec}">← Back</button>
-        <button id="btn-next" style="${wireOk?S.btnPri:S.btnDis}" ${!wireOk?'disabled':''}>Continue →</button>
-      </div>`;
+    return `<h1 style="${S.h1}">${sec.title}</h1><p style="${S.sub}">Select one per TV.</p>${wireBanner}${opts}<div style="${S.actions}"><button id="btn-prev" style="${S.btnSec}">← Back</button><button id="btn-next" style="${wireOk?S.btnPri:S.btnDis}" ${!wireOk?'disabled':''}>Continue →</button></div>`;
   }
 
-  /* ─── Step: lifting (medium TVs only) ───────────────────────────── */
   function bLifting(){
     const sec=getSec('lifting');
     const medOpts=sec.options.filter(o=>o.forCat==='medium');
     const cur=(selections[sec.id]||[])[0]?.option_id;
-    const LIFT={
-      '1764782113636x102636028242952200':'I can help lift the TV into place',
-      '1764782128214x566028847520153600':'I cannot help lift the TV into place',
-    };
-    const opts=medOpts.map(o=>{
-      const on=cur===o.id;
-      return `<div class="dom-sel" data-s="${sec.id}" data-o="${o.id}" style="${S.card(on)}">
-        <span>${LIFT[o.id]||o.label}${S.price(o.price)}</span>
-        <span style="color:${on?BLUE:'#A7B3BE'}!important;font-size:18px!important;">${on?'●':'○'}</span>
-      </div>`;
-    }).join('');
+    const LIFT={'1764782113636x102636028242952200':'I can help lift the TV into place','1764782128214x566028847520153600':'I cannot help lift the TV into place'};
+    const opts=medOpts.map(o=>{const on=cur===o.id;return `<div class="dom-sel" data-s="${sec.id}" data-o="${o.id}" style="${S.card(on)}"><span>${LIFT[o.id]||o.label}${S.price(o.price)}</span><span style="color:${on?BLUE:'#A7B3BE'}!important;font-size:18px!important;">${on?'●':'○'}</span></div>`;}).join('');
     const ok=!!cur;
-    return `<h1 style="${S.h1}">Can you help us lift the TV?</h1>
-      <p style="${S.sub}">One or more of your TVs is in the 70–85" range. Can you assist the technician lifting it onto the bracket?</p>
-      ${opts}
-      <div style="${S.actions}">
-        <button id="btn-prev" style="${S.btnSec}">← Back</button>
-        <button id="btn-next" style="${ok?S.btnPri:S.btnDis}" ${!ok?'disabled':''}>Continue →</button>
-      </div>`;
+    return `<h1 style="${S.h1}">Can you help us lift the TV?</h1><p style="${S.sub}">One or more of your TVs is in the 70–85" range. Can you assist the technician lifting it onto the bracket?</p>${opts}<div style="${S.actions}"><button id="btn-prev" style="${S.btnSec}">← Back</button><button id="btn-next" style="${ok?S.btnPri:S.btnDis}" ${!ok?'disabled':''}>Continue →</button></div>`;
   }
 
-  /* ─── Step: dismount ────────────────────────────────────────────── */
   function bDismount(){
     const sec=getSec('dismount');
     const cur=(selections[sec.id]||[])[0]?.option_id;
     const yesId=sec.options[0].id, noId=sec.options[1].id, yesOn=cur===yesId;
-    return `
-      <h1 style="margin:0 0 10px 0!important;font-size:26px!important;font-weight:800!important;color:${INK}!important;display:block!important;line-height:1.2!important;">Removal Service</h1>
-      <p style="font-size:13px!important;color:${MUTE}!important;margin:0 0 14px 0!important;line-height:1.6!important;">
-        <strong style="color:${INK}!important;">Thinking of upgrading your TV later?</strong> We offer <strong style="color:${BLUE}!important;">professional removal at no charge</strong> to our past mounting customers.
-      </p>
-      <div style="background:#F7FAFC!important;border:1px solid ${LINE}!important;border-radius:10px!important;padding:14px!important;margin-bottom:12px!important;">
-        <div style="font-size:14px!important;font-weight:700!important;color:${INK}!important;margin-bottom:10px!important;">What's Included</div>
-        ${['Professional TV removal when you upgrade','Wall patch & cleanup (no extra charge)'].map(t=>`<div style="display:flex!important;gap:8px!important;align-items:flex-start!important;font-size:13px!important;color:${MUTE}!important;margin-bottom:7px!important;"><span style="color:${BLUE}!important;font-size:15px!important;flex-shrink:0!important;">✔</span><span>${t}</span></div>`).join('')}
-      </div>
-      <div style="display:grid!important;grid-template-columns:1fr 1fr 1fr!important;gap:8px!important;margin-bottom:14px!important;">
-        ${[['$35','Future Service'],['Expert','Removal'],['Included','Repairs']].map(c=>`<div style="background:#F7FAFC!important;border:1.5px solid ${BLUE}!important;border-radius:8px!important;padding:12px 6px!important;text-align:center!important;"><div style="font-size:18px!important;font-weight:800!important;color:${BLUE}!important;">${c[0]}</div><div style="font-size:10px!important;color:${MUTE}!important;margin-top:3px!important;">${c[1]}</div></div>`).join('')}
-      </div>
-      <button id="btn-dis-yes" style="background:${yesOn?BLUE:BLUE}!important;opacity:${yesOn?'1':'0.9'}!important;color:#fff!important;border:${yesOn?'2px solid '+BLUE_DK:'none'}!important;padding:15px!important;border-radius:10px!important;font-size:15px!important;font-weight:700!important;cursor:pointer!important;width:100%!important;display:block!important;text-align:center!important;box-sizing:border-box!important;margin-bottom:10px!important;">
-        ${yesOn?'✓ ':''}Yes — Add Removal Service ($35)
-      </button>
-      <div style="text-align:center!important;margin-bottom:8px!important;">
-        <button id="btn-dis-no" style="background:${cur===noId?'#EDF1F5':'transparent'}!important;color:${cur===noId?INK:MUTE}!important;border:none!important;font-size:13px!important;cursor:pointer!important;text-decoration:underline!important;padding:8px 16px!important;">
-          ${cur===noId?'✓ ':''}Skip this for now
-        </button>
-      </div>
-      <div style="${S.actions}">
-        <button id="btn-prev" style="${S.btnSec}">← Back</button>
-        <button id="btn-next" style="${cur?S.btnPri:S.btnDis}" ${!cur?'disabled':''}>Continue →</button>
-      </div>`;
+    return `<h1 style="margin:0 0 10px 0!important;font-size:26px!important;font-weight:800!important;color:${INK}!important;display:block!important;line-height:1.2!important;">Removal Service</h1><p style="font-size:13px!important;color:${MUTE}!important;margin:0 0 14px 0!important;line-height:1.6!important;"><strong style="color:${INK}!important;">Thinking of upgrading your TV later?</strong> We offer <strong style="color:${BLUE}!important;">professional removal at no charge</strong> to our past mounting customers.</p><div style="background:#F7FAFC!important;border:1px solid ${LINE}!important;border-radius:10px!important;padding:14px!important;margin-bottom:12px!important;"><div style="font-size:14px!important;font-weight:700!important;color:${INK}!important;margin-bottom:10px!important;">What's Included</div>${['Professional TV removal when you upgrade','Wall patch & cleanup (no extra charge)'].map(t=>`<div style="display:flex!important;gap:8px!important;align-items:flex-start!important;font-size:13px!important;color:${MUTE}!important;margin-bottom:7px!important;"><span style="color:${BLUE}!important;font-size:15px!important;flex-shrink:0!important;">✔</span><span>${t}</span></div>`).join('')}</div><div style="display:grid!important;grid-template-columns:1fr 1fr 1fr!important;gap:8px!important;margin-bottom:14px!important;">${[['$35','Future Service'],['Expert','Removal'],['Included','Repairs']].map(c=>`<div style="background:#F7FAFC!important;border:1.5px solid ${BLUE}!important;border-radius:8px!important;padding:12px 6px!important;text-align:center!important;"><div style="font-size:18px!important;font-weight:800!important;color:${BLUE}!important;">${c[0]}</div><div style="font-size:10px!important;color:${MUTE}!important;margin-top:3px!important;">${c[1]}</div></div>`).join('')}</div><button id="btn-dis-yes" style="background:${yesOn?BLUE:BLUE}!important;opacity:${yesOn?'1':'0.9'}!important;color:#fff!important;border:${yesOn?'2px solid '+BLUE_DK:'none'}!important;padding:15px!important;border-radius:10px!important;font-size:15px!important;font-weight:700!important;cursor:pointer!important;width:100%!important;display:block!important;text-align:center!important;box-sizing:border-box!important;margin-bottom:10px!important;">${yesOn?'✓ ':''}Yes — Add Removal Service ($35)</button><div style="text-align:center!important;margin-bottom:8px!important;"><button id="btn-dis-no" style="background:${cur===noId?'#EDF1F5':'transparent'}!important;color:${cur===noId?INK:MUTE}!important;border:none!important;font-size:13px!important;cursor:pointer!important;text-decoration:underline!important;padding:8px 16px!important;">${cur===noId?'✓ ':''}Skip this for now</button></div><div style="${S.actions}"><button id="btn-prev" style="${S.btnSec}">← Back</button><button id="btn-next" style="${cur?S.btnPri:S.btnDis}" ${!cur?'disabled':''}>Continue →</button></div>`;
   }
 
-  /* ─── Step: extras ──────────────────────────────────────────────── */
   function bExtras(){
     const sec=getSec('extras');
     const visible=sec.options.filter(o=>!o.frameOnly);
-    const opts=visible.map(o=>{
-      const q=getQty(sec.id,o.id);
-      const row=`<div style="${S.qRow(q>0)}">
-        <span style="flex:1!important;">${o.label}${S.price(o.price)}</span>
-        <div style="display:flex!important;align-items:center!important;gap:8px!important;flex-shrink:0!important;">
-          <button class="dom-dec" data-s="${sec.id}" data-o="${o.id}" style="${S.qBtn}">−</button>
-          <span style="${S.qNum}">${q}</span>
-          <button class="dom-inc" data-s="${sec.id}" data-o="${o.id}" style="${S.qBtn}">+</button>
-        </div></div>`;
-      const showText=o.allowText&&q>0;
-      const ph=/Other/i.test(o.label)?'e.g. I also need some curtains hung…':'Tell us what you need the handyman for…';
-      const textBox=showText?`<div style="margin:-2px 0 10px 0!important;"><textarea class="dom-comment" data-o="${o.id}" rows="2" style="width:100%!important;padding:10px 12px!important;background:#F7FAFC!important;border:1px solid ${BLUE}!important;color:${INK}!important;border-radius:6px!important;font-size:14px!important;box-sizing:border-box!important;resize:vertical!important;font-family:inherit!important;" placeholder="${ph}">${(optionComments[o.id]||'').replace(/</g,'&lt;')}</textarea></div>`:'';
-      return row+textBox;
-    }).join('');
-    return `<h1 style="${S.h1}">${sec.title}</h1><p style="${S.sub}">${sec.subtitle}</p>${opts}
-      <div style="${S.actions}">
-        <button id="btn-prev" style="${S.btnSec}">← Back</button>
-        <button id="btn-next" style="${S.btnPri}">Continue →</button>
-      </div>`;
+    const opts=visible.map(o=>{const q=getQty(sec.id,o.id);const row=`<div style="${S.qRow(q>0)}"><span style="flex:1!important;">${o.label}${S.price(o.price)}</span><div style="display:flex!important;align-items:center!important;gap:8px!important;flex-shrink:0!important;"><button class="dom-dec" data-s="${sec.id}" data-o="${o.id}" style="${S.qBtn}">−</button><span style="${S.qNum}">${q}</span><button class="dom-inc" data-s="${sec.id}" data-o="${o.id}" style="${S.qBtn}">+</button></div></div>`;const showText=o.allowText&&q>0;const ph=/Other/i.test(o.label)?'e.g. I also need some curtains hung…':'Tell us what you need the handyman for…';const textBox=showText?`<div style="margin:-2px 0 10px 0!important;"><textarea class="dom-comment" data-o="${o.id}" rows="2" style="width:100%!important;padding:10px 12px!important;background:#F7FAFC!important;border:1px solid ${BLUE}!important;color:${INK}!important;border-radius:6px!important;font-size:14px!important;box-sizing:border-box!important;resize:vertical!important;font-family:inherit!important;" placeholder="${ph}">${(optionComments[o.id]||'').replace(/</g,'&lt;')}</textarea></div>`:'';return row+textBox;}).join('');
+    return `<h1 style="${S.h1}">${sec.title}</h1><p style="${S.sub}">${sec.subtitle}</p>${opts}<div style="${S.actions}"><button id="btn-prev" style="${S.btnSec}">← Back</button><button id="btn-next" style="${S.btnPri}">Continue →</button></div>`;
   }
 
-  /* ─── Step: terms ───────────────────────────────────────────────── */
   function bTerms(){
     const sec=getSec('terms');
     const agreed=(selections[sec.id]||[])[0]?.option_id===sec.options[0].id;
-    return `
-      <h1 style="${S.h1}">${sec.title}</h1>
-      <div style="background:#F7FAFC!important;border:1px solid ${LINE}!important;border-radius:8px!important;padding:16px!important;margin-bottom:20px!important;font-size:13px!important;color:${MUTE}!important;line-height:1.7!important;max-height:130px!important;overflow-y:auto!important;">${sec.subtitle}</div>
-      <div style="display:flex!important;justify-content:center!important;margin-bottom:20px!important;">
-        <div class="dom-sel" data-s="${sec.id}" data-o="${sec.options[0].id}" style="background:${agreed?'#D6E8F7':'#fff'}!important;border:1.5px solid ${agreed?BLUE_LIGHT:LINE}!important;border-radius:8px!important;padding:12px 24px!important;color:${INK}!important;display:inline-flex!important;align-items:center!important;gap:10px!important;font-size:14px!important;cursor:pointer!important;">
-          <span style="font-size:20px!important;">${agreed?'☑':'☐'}</span><span>${sec.options[0].label}</span>
-        </div>
-      </div>
-      <div style="${S.actions}">
-        <button id="btn-prev" style="${S.btnSec}">← Back</button>
-        <button id="btn-next" style="${agreed?S.btnPri:S.btnDis}" ${!agreed?'disabled':''}>Continue →</button>
-      </div>`;
+    return `<h1 style="${S.h1}">${sec.title}</h1><div style="background:#F7FAFC!important;border:1px solid ${LINE}!important;border-radius:8px!important;padding:16px!important;margin-bottom:20px!important;font-size:13px!important;color:${MUTE}!important;line-height:1.7!important;max-height:130px!important;overflow-y:auto!important;">${sec.subtitle}</div><div style="display:flex!important;justify-content:center!important;margin-bottom:20px!important;"><div class="dom-sel" data-s="${sec.id}" data-o="${sec.options[0].id}" style="background:${agreed?'#D6E8F7':'#fff'}!important;border:1.5px solid ${agreed?BLUE_LIGHT:LINE}!important;border-radius:8px!important;padding:12px 24px!important;color:${INK}!important;display:inline-flex!important;align-items:center!important;gap:10px!important;font-size:14px!important;cursor:pointer!important;"><span style="font-size:20px!important;">${agreed?'☑':'☐'}</span><span>${sec.options[0].label}</span></div></div><div style="${S.actions}"><button id="btn-prev" style="${S.btnSec}">← Back</button><button id="btn-next" style="${agreed?S.btnPri:S.btnDis}" ${!agreed?'disabled':''}>Continue →</button></div>`;
   }
 
-  /* ─── Step: slots (calendar) ────────────────────────────────────── */
   function bSlots(){
     const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
     const DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
     const allDates=Object.keys(slotsByDate).sort();
-    if(!allDates.length){
-      return `<h1 style="${S.h1}">What day works best for you?</h1>
-        <p style="color:${MUTE}!important;font-size:14px!important;margin-bottom:16px!important;">Loading available dates…</p>
-        <div style="${S.actions}"><button id="btn-prev" style="${S.btnSec}">← Back</button></div>`;
-    }
+    if(!allDates.length){return `<h1 style="${S.h1}">What day works best for you?</h1><p style="color:${MUTE}!important;font-size:14px!important;margin-bottom:16px!important;">Loading available dates…</p><div style="${S.actions}"><button id="btn-prev" style="${S.btnSec}">← Back</button></div>`;}
     if(calYear===null){const f=new Date(allDates[0]+'T12:00:00');calYear=f.getFullYear();calMonth=f.getMonth();}
     const availSet=new Set(allDates);
     const firstDay=new Date(calYear,calMonth,1).getDay();
@@ -701,181 +468,52 @@
     for(let d=1;d<=daysInMonth;d++){
       const ds=`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
       const has=availSet.has(ds),isSel=selectedDate===ds,isToday=ds===todayStr;
-      if(has){
-        cells+=`<div class="dom-date" data-date="${ds}" style="text-align:center!important;cursor:pointer!important;padding:4px 2px!important;border-radius:8px!important;background:${isSel?TINT:'transparent'}!important;">
-          <div style="width:32px!important;height:32px!important;border-radius:50%!important;margin:0 auto!important;display:flex!important;align-items:center!important;justify-content:center!important;background:${isSel?BLUE:isToday?TINT:'transparent'}!important;font-size:14px!important;font-weight:${isSel||isToday?700:400}!important;color:${isSel?'#fff':isToday?BLUE:INK}!important;border:${isToday&&!isSel?'1.5px solid '+BLUE:'none'}!important;">${d}</div>
-        </div>`;
-      }else{
-        cells+=`<div style="text-align:center!important;padding:4px 2px!important;"><div style="width:32px!important;height:32px!important;margin:0 auto!important;display:flex!important;align-items:center!important;justify-content:center!important;font-size:14px!important;color:#C2CCD6!important;">${d}</div></div>`;
-      }
+      if(has){cells+=`<div class="dom-date" data-date="${ds}" style="text-align:center!important;cursor:pointer!important;padding:4px 2px!important;border-radius:8px!important;background:${isSel?TINT:'transparent'}!important;"><div style="width:32px!important;height:32px!important;border-radius:50%!important;margin:0 auto!important;display:flex!important;align-items:center!important;justify-content:center!important;background:${isSel?BLUE:isToday?TINT:'transparent'}!important;font-size:14px!important;font-weight:${isSel||isToday?700:400}!important;color:${isSel?'#fff':isToday?BLUE:INK}!important;border:${isToday&&!isSel?'1.5px solid '+BLUE:'none'}!important;">${d}</div></div>`;}else{cells+=`<div style="text-align:center!important;padding:4px 2px!important;"><div style="width:32px!important;height:32px!important;margin:0 auto!important;display:flex!important;align-items:center!important;justify-content:center!important;font-size:14px!important;color:#C2CCD6!important;">${d}</div></div>`;}
     }
     let timeHtml='';
     if(selectedDate&&slotsByDate[selectedDate]){
       const df=fmtDate(selectedDate);
-      const slotBtns=slotsByDate[selectedDate].map(sl=>{
-        const on=selectedSlot===sl.id;
-        return `<div class="dom-slot" data-id="${sl.id}" style="background:${on?TINT:'#fff'}!important;border:1.5px solid ${on?BLUE:LINE}!important;border-radius:8px!important;padding:14px 10px!important;cursor:pointer!important;text-align:center!important;">
-          <div style="font-size:13px!important;font-weight:600!important;color:${INK}!important;">${sl.arrival_window}</div></div>`;
-      }).join('');
-      timeHtml=`<div style="border-top:1px solid ${LINE}!important;margin-top:12px!important;padding-top:12px!important;">
-        <p style="font-size:13px!important;color:${MUTE}!important;margin:0 0 10px 0!important;">${df.long}, ${df.date} — select a time:</p>
-        <div style="display:grid!important;grid-template-columns:1fr 1fr!important;gap:8px!important;">${slotBtns}</div></div>`;
+      const slotBtns=slotsByDate[selectedDate].map(sl=>{const on=selectedSlot===sl.id;return `<div class="dom-slot" data-id="${sl.id}" style="background:${on?TINT:'#fff'}!important;border:1.5px solid ${on?BLUE:LINE}!important;border-radius:8px!important;padding:14px 10px!important;cursor:pointer!important;text-align:center!important;"><div style="font-size:13px!important;font-weight:600!important;color:${INK}!important;">${sl.arrival_window}</div></div>`;}).join('');
+      timeHtml=`<div style="border-top:1px solid ${LINE}!important;margin-top:12px!important;padding-top:12px!important;"><p style="font-size:13px!important;color:${MUTE}!important;margin:0 0 10px 0!important;">${df.long}, ${df.date} — select a time:</p><div style="display:grid!important;grid-template-columns:1fr 1fr!important;gap:8px!important;">${slotBtns}</div></div>`;
     }
-    return `
-      <h1 style="${S.h1}">What day works best for you?</h1>
-      <div style="background:#fff!important;border:1px solid ${LINE}!important;border-radius:10px!important;padding:14px!important;margin-bottom:14px!important;">
-        <div style="display:flex!important;align-items:center!important;justify-content:space-between!important;margin-bottom:10px!important;">
-          <button id="cal-prev" style="background:transparent!important;border:1px solid ${LINE}!important;color:${canPrev?BLUE:'#C2CCD6'}!important;width:30px!important;height:30px!important;border-radius:50%!important;cursor:${canPrev?'pointer':'default'}!important;font-size:16px!important;display:flex!important;align-items:center!important;justify-content:center!important;" ${!canPrev?'disabled':''}>‹</button>
-          <span style="font-size:15px!important;font-weight:700!important;color:${INK}!important;">${MONTHS[calMonth]} ${calYear}</span>
-          <button id="cal-next" style="background:transparent!important;border:1px solid ${LINE}!important;color:${canNext?BLUE:'#C2CCD6'}!important;width:30px!important;height:30px!important;border-radius:50%!important;cursor:${canNext?'pointer':'default'}!important;font-size:16px!important;display:flex!important;align-items:center!important;justify-content:center!important;" ${!canNext?'disabled':''}>›</button>
-        </div>
-        <div style="display:grid!important;grid-template-columns:repeat(7,1fr)!important;">${dayHdr}</div>
-        <div style="display:grid!important;grid-template-columns:repeat(7,1fr)!important;">${cells}</div>
-        ${timeHtml}
-      </div>
-      <div style="${S.actions}">
-        <button id="btn-prev" style="${S.btnSec}">← Back</button>
-        <button id="btn-next" style="${selectedSlot?S.btnPri:S.btnDis}" ${!selectedSlot?'disabled':''}>Continue →</button>
-      </div>`;
-    }
-
-  /* ─── Step: customer (booking vs quote) ─────────────────────────── */
-  function bCustomer(){
-    const isTV=selectedService==='tv';
-    const fields=`
-      <input type="text"  id="c-fn" style="${S.inputL}" placeholder="First Name"     value="${customer.first_name}">
-      <input type="text"  id="c-ln" style="${S.inputL}" placeholder="Last Name"      value="${customer.last_name}">
-      <input type="email" id="c-em" style="${S.inputL}" placeholder="Email Address"  value="${customer.email}">
-      <input type="tel"   id="c-ph" style="${S.inputL}" placeholder="Phone Number"   value="${customer.phone}">
-      <input type="text"  id="c-ad" style="${S.inputL}" placeholder="Street Address" value="${customer.address}">
-      <input type="text"  id="c-zip" style="${S.inputL}" placeholder="ZIP" maxlength="5" inputmode="numeric" value="${customer.zip}">`;
-
-    if(!isTV){
-      const q=QUOTES[selectedService];
-      return `
-        <h1 style="${S.h1};color:${BLUE}!important;">Last step — your contact info</h1>
-        <p style="${S.sub}">We'll use this to follow up about your ${selectedService==='handyman'?'handyman request':'home theater quote'}.</p>
-        ${fields}
-        <div style="background:${TINT}!important;border:1px solid ${BLUE}!important;border-radius:10px!important;padding:14px 16px!important;margin:6px 0 18px 0!important;font-size:13px!important;color:${BLUE_DK}!important;line-height:1.6!important;">
-          ✅ <strong>No payment now.</strong> We'll review your details and reach out shortly with next steps.
-        </div>
-        <div style="${S.actions}">
-          <button id="btn-prev" style="${S.btnSec}">← Back</button>
-          <button id="btn-submit" style="${S.btnPri}">${q.cta} ✓</button>
-        </div>`;
-    }
-
-    const tips=[0,5,10,15,20];
-    const tipHtml=tips.map(t=>`<button class="dom-tip" data-tip="${t}" style="background:${tipAmount===t?BLUE:'#fff'}!important;color:${tipAmount===t?'#fff':INK}!important;border:1.5px solid ${tipAmount===t?BLUE:LINE}!important;border-radius:6px!important;padding:8px 14px!important;font-size:14px!important;cursor:pointer!important;flex:1!important;">${t===0?'No Tip':`$${t}`}</button>`).join('');
-    return `
-      <h1 style="${S.h1};color:${BLUE}!important;">Almost done! Last step…</h1>
-      <div style="background:#D6E8F7!important;border:1px solid ${BLUE_LIGHT}!important;border-radius:8px!important;padding:12px 14px!important;margin-bottom:18px!important;font-size:12px!important;color:${MUTE}!important;line-height:1.6!important;">
-        💳 <strong style="color:${INK}!important;">Your card will not be charged until after the job is complete.</strong> Payment is taken at time of service by the technician. Your card only holds the appointment.
-      </div>
-      ${fields}
-      <div style="background:#fff!important;border:1px solid ${LINE}!important;border-radius:8px!important;padding:14px!important;margin-bottom:14px!important;">
-        <div style="font-size:11px!important;color:${MUTE}!important;margin-bottom:12px!important;font-weight:600!important;text-transform:uppercase!important;letter-spacing:0.5px!important;">💳 Card to Hold Appointment</div>
-        <div id="stripe-card-element" style="background:#F7FAFC!important;border:1px solid ${LINE}!important;border-radius:6px!important;padding:14px!important;min-height:44px!important;"></div>
-        <p style="font-size:11px!important;color:#8A97A4!important;margin:8px 0 0 0!important;">🔒 Secured by Stripe. Payment collected by technician at time of service.</p>
-      </div>
-      <div style="margin-bottom:14px!important;">
-        <div style="font-size:13px!important;color:${MUTE}!important;margin-bottom:8px!important;">Tip your technician (optional)</div>
-        <div style="display:flex!important;gap:6px!important;">${tipHtml}</div>
-      </div>
-      <div style="background:#D6E8F7!important;border:1.5px solid ${BLUE_LIGHT}!important;border-radius:10px!important;padding:16px 18px!important;margin-bottom:18px!important;">
-        <div style="display:flex!important;align-items:center!important;justify-content:space-between!important;margin-bottom:8px!important;">
-          <div style="font-size:14px!important;font-weight:700!important;color:${INK}!important;">Your estimated total</div>
-          <div style="font-size:26px!important;font-weight:800!important;color:${BLUE}!important;">$${calcTotal()}</div>
-        </div>
-        <div style="font-size:12px!important;color:${MUTE}!important;line-height:1.6!important;">Taxes &amp; adjustments applied at checkout.<br>You can add or remove services with the technician at the time of the appointment.</div>
-      </div>
-      <div style="${S.actions}">
-        <button id="btn-prev" style="${S.btnSec}">← Back</button>
-        <button id="btn-submit" style="${S.btnPri}">Complete My Booking ✓</button>
-      </div>`;
+    return `<h1 style="${S.h1}">What day works best for you?</h1><div style="background:#fff!important;border:1px solid ${LINE}!important;border-radius:10px!important;padding:14px!important;margin-bottom:14px!important;"><div style="display:flex!important;align-items:center!important;justify-content:space-between!important;margin-bottom:10px!important;"><button id="cal-prev" style="background:transparent!important;border:1px solid ${LINE}!important;color:${canPrev?BLUE:'#C2CCD6'}!important;width:30px!important;height:30px!important;border-radius:50%!important;cursor:${canPrev?'pointer':'default'}!important;font-size:16px!important;display:flex!important;align-items:center!important;justify-content:center!important;" ${!canPrev?'disabled':''}>‹</button><span style="font-size:15px!important;font-weight:700!important;color:${INK}!important;">${MONTHS[calMonth]} ${calYear}</span><button id="cal-next" style="background:transparent!important;border:1px solid ${LINE}!important;color:${canNext?BLUE:'#C2CCD6'}!important;width:30px!important;height:30px!important;border-radius:50%!important;cursor:${canNext?'pointer':'default'}!important;font-size:16px!important;display:flex!important;align-items:center!important;justify-content:center!important;" ${!canNext?'disabled':''}>›</button></div><div style="display:grid!important;grid-template-columns:repeat(7,1fr)!important;">${dayHdr}</div><div style="display:grid!important;grid-template-columns:repeat(7,1fr)!important;">${cells}</div>${timeHtml}</div><div style="${S.actions}"><button id="btn-prev" style="${S.btnSec}">← Back</button><button id="btn-next" style="${selectedSlot?S.btnPri:S.btnDis}" ${!selectedSlot?'disabled':''}>Continue →</button></div>`;
   }
 
-  /* ─── Event wiring ──────────────────────────────────────────────── */
+  function bCustomer(){
+    const isTV=selectedService==='tv';
+    const fields=`<input type="text"  id="c-fn" style="${S.inputL}" placeholder="First Name"     value="${customer.first_name}"><input type="text"  id="c-ln" style="${S.inputL}" placeholder="Last Name"      value="${customer.last_name}"><input type="email" id="c-em" style="${S.inputL}" placeholder="Email Address"  value="${customer.email}"><input type="tel"   id="c-ph" style="${S.inputL}" placeholder="Phone Number"   value="${customer.phone}"><input type="text"  id="c-ad" style="${S.inputL}" placeholder="Street Address" value="${customer.address}"><input type="text"  id="c-zip" style="${S.inputL}" placeholder="ZIP" maxlength="5" inputmode="numeric" value="${customer.zip}">`;
+    if(!isTV){
+      const q=QUOTES[selectedService];
+      return `<h1 style="${S.h1};color:${BLUE}!important;">Last step — your contact info</h1><p style="${S.sub}">We'll use this to follow up about your ${selectedService==='handyman'?'handyman request':'home theater quote'}.</p>${fields}<div style="background:${TINT}!important;border:1px solid ${BLUE}!important;border-radius:10px!important;padding:14px 16px!important;margin:6px 0 18px 0!important;font-size:13px!important;color:${BLUE_DK}!important;line-height:1.6!important;">✅ <strong>No payment now.</strong> We'll review your details and reach out shortly with next steps.</div><div style="${S.actions}"><button id="btn-prev" style="${S.btnSec}">← Back</button><button id="btn-submit" style="${S.btnPri}">${q.cta} ✓</button></div>`;
+    }
+    const tips=[0,5,10,15,20];
+    const tipHtml=tips.map(t=>`<button class="dom-tip" data-tip="${t}" style="background:${tipAmount===t?BLUE:'#fff'}!important;color:${tipAmount===t?'#fff':INK}!important;border:1.5px solid ${tipAmount===t?BLUE:LINE}!important;border-radius:6px!important;padding:8px 14px!important;font-size:14px!important;cursor:pointer!important;flex:1!important;">${t===0?'No Tip':`$${t}`}</button>`).join('');
+    return `<h1 style="${S.h1};color:${BLUE}!important;">Almost done! Last step…</h1><div style="background:#D6E8F7!important;border:1px solid ${BLUE_LIGHT}!important;border-radius:8px!important;padding:12px 14px!important;margin-bottom:18px!important;font-size:12px!important;color:${MUTE}!important;line-height:1.6!important;">💳 <strong style="color:${INK}!important;">Your card will not be charged until after the job is complete.</strong> Payment is taken at time of service by the technician. Your card only holds the appointment.</div>${fields}<div style="background:#fff!important;border:1px solid ${LINE}!important;border-radius:8px!important;padding:14px!important;margin-bottom:14px!important;"><div style="font-size:11px!important;color:${MUTE}!important;margin-bottom:12px!important;font-weight:600!important;text-transform:uppercase!important;letter-spacing:0.5px!important;">💳 Card to Hold Appointment</div><div id="stripe-card-element" style="background:#F7FAFC!important;border:1px solid ${LINE}!important;border-radius:6px!important;padding:14px!important;min-height:44px!important;"></div><p style="font-size:11px!important;color:#8A97A4!important;margin:8px 0 0 0!important;">🔒 Secured by Stripe. Payment collected by technician at time of service.</p></div><div style="margin-bottom:14px!important;"><div style="font-size:13px!important;color:${MUTE}!important;margin-bottom:8px!important;">Tip your technician (optional)</div><div style="display:flex!important;gap:6px!important;">${tipHtml}</div></div><div style="background:#D6E8F7!important;border:1.5px solid ${BLUE_LIGHT}!important;border-radius:10px!important;padding:16px 18px!important;margin-bottom:18px!important;"><div style="display:flex!important;align-items:center!important;justify-content:space-between!important;margin-bottom:8px!important;"><div style="font-size:14px!important;font-weight:700!important;color:${INK}!important;">Your estimated total</div><div style="font-size:26px!important;font-weight:800!important;color:${BLUE}!important;">$${calcTotal()}</div></div><div style="font-size:12px!important;color:${MUTE}!important;line-height:1.6!important;">Taxes &amp; adjustments applied at checkout.<br>You can add or remove services with the technician at the time of the appointment.</div></div><div style="${S.actions}"><button id="btn-prev" style="${S.btnSec}">← Back</button><button id="btn-submit" style="${S.btnPri}">Complete My Booking ✓</button></div>`;
+  }
+
   function wire(root){
-    root.querySelectorAll('.dom-svc').forEach(c=>c.addEventListener('click',()=>{
-      selectedService=c.dataset.svc;
-      serviceConfig=selectedService==='tv'?TV:null;
-      goNext();
-    }));
+    root.querySelectorAll('.dom-svc').forEach(c=>c.addEventListener('click',()=>{selectedService=c.dataset.svc;serviceConfig=selectedService==='tv'?TV:null;goNext();}));
     root.querySelector('#btn-prev')?.addEventListener('click',()=>goBack());
     root.querySelector('#btn-next')?.addEventListener('click',()=>goNext());
     root.querySelector('#btn-submit')?.addEventListener('click',()=>doSubmit(root));
-    root.querySelector('#btn-verify-zip')?.addEventListener('click',()=>{
-      if(DENVER_ZIPS.has(customer.zip)){zipVerified=true;stepIdx=0;goNext();}
-    });
+    root.querySelector('#btn-verify-zip')?.addEventListener('click',()=>{if(DENVER_ZIPS.has(customer.zip)){zipVerified=true;stepIdx=0;goNext();}});
     root.querySelector('#btn-back-zip')?.addEventListener('click',()=>{zipVerified=false;stepIdx=0;render();});
     root.querySelector('#cal-prev')?.addEventListener('click',()=>{calMonth--;if(calMonth<0){calMonth=11;calYear--;}render();});
     root.querySelector('#cal-next')?.addEventListener('click',()=>{calMonth++;if(calMonth>11){calMonth=0;calYear++;}render();});
     root.querySelector('#btn-dis-yes')?.addEventListener('click',()=>{const s=getSec('dismount');if(s)selectOnly(s.id,s.options[0].id);render();});
     root.querySelector('#btn-dis-no')?.addEventListener('click',()=>{const s=getSec('dismount');if(s)selectOnly(s.id,s.options[1].id);render();});
-
     const ta=root.querySelector('#dom-describe');
-    if(ta)ta.addEventListener('input',e=>{
-      describeText=e.target.value;
-      const nb=root.querySelector('#btn-next'), on=describeText.trim().length>0;
-      if(nb){nb.disabled=!on;nb.style.cssText=on?S.btnPri:S.btnDis;}
-      e.target.style.borderColor=on?BLUE:LINE;
-    });
-
-    root.querySelectorAll('.dom-tv-type').forEach(c=>c.addEventListener('click',()=>{
-      const type=c.dataset.type;
-      if(!selections['__frame_type'])selections['__frame_type']=[];
-      const idx=selections['__frame_type'].indexOf(type);
-      if(idx!==-1)selections['__frame_type'].splice(idx,1);
-      else selections['__frame_type'].push(type);
-      isFrameTV=selections['__frame_type'].includes('frame');
-      const onlyFrame=isFrameTV&&!selections['__frame_type'].includes('regular');
-      setQty(serviceConfig.frameBracketSectionId,serviceConfig.frameBracketOptionId,onlyFrame?(totalTVs()||1):0);
-      render();
-    }));
-
-    root.querySelectorAll('.dom-inc').forEach(b=>b.addEventListener('click',e=>{
-      const s=b.dataset.s, o=b.dataset.o;
-      setQty(s,o,getQty(s,o)+1);
-      render();
-    }));
-    root.querySelectorAll('.dom-dec').forEach(b=>b.addEventListener('click',e=>{
-      const s=b.dataset.s, o=b.dataset.o;
-      const q=getQty(s,o); if(q>0)setQty(s,o,q-1);
-      render();
-    }));
-    root.querySelectorAll('.dom-sel').forEach(c=>c.addEventListener('click',()=>{
-      const s=c.dataset.s, o=c.dataset.o;
-      selectOnly(s,o);
-      render();
-    }));
-    root.querySelectorAll('.dom-date').forEach(c=>c.addEventListener('click',()=>{
-      selectedDate=c.dataset.date;
-      selectedSlot=null;
-      render();
-    }));
-    root.querySelectorAll('.dom-slot').forEach(c=>c.addEventListener('click',()=>{
-      selectedSlot=c.dataset.id;
-      render();
-    }));
-    root.querySelectorAll('.dom-tip').forEach(b=>b.addEventListener('click',()=>{
-      tipAmount=parseInt(b.dataset.tip);
-      render();
-    }));
-    root.querySelectorAll('.dom-comment').forEach(ta=>ta.addEventListener('input',e=>{
-      optionComments[e.target.dataset.o]=e.target.value;
-    }));
+    if(ta)ta.addEventListener('input',e=>{describeText=e.target.value;const nb=root.querySelector('#btn-next'), on=describeText.trim().length>0;if(nb){nb.disabled=!on;nb.style.cssText=on?S.btnPri:S.btnDis;}e.target.style.borderColor=on?BLUE:LINE;});
+    root.querySelectorAll('.dom-tv-type').forEach(c=>c.addEventListener('click',()=>{const type=c.dataset.type;if(!selections['__frame_type'])selections['__frame_type']=[];const idx=selections['__frame_type'].indexOf(type);if(idx!==-1)selections['__frame_type'].splice(idx,1);else selections['__frame_type'].push(type);isFrameTV=selections['__frame_type'].includes('frame');const onlyFrame=isFrameTV&&!selections['__frame_type'].includes('regular');setQty(serviceConfig.frameBracketSectionId,serviceConfig.frameBracketOptionId,onlyFrame?(totalTVs()||1):0);render();}));
+    root.querySelectorAll('.dom-inc').forEach(b=>b.addEventListener('click',e=>{const s=b.dataset.s, o=b.dataset.o;setQty(s,o,getQty(s,o)+1);render();}));
+    root.querySelectorAll('.dom-dec').forEach(b=>b.addEventListener('click',e=>{const s=b.dataset.s, o=b.dataset.o;const q=getQty(s,o); if(q>0)setQty(s,o,q-1);render();}));
+    root.querySelectorAll('.dom-sel').forEach(c=>c.addEventListener('click',()=>{const s=c.dataset.s, o=c.dataset.o;selectOnly(s,o);render();}));
+    root.querySelectorAll('.dom-date').forEach(c=>c.addEventListener('click',()=>{selectedDate=c.dataset.date;selectedSlot=null;render();}));
+    root.querySelectorAll('.dom-slot').forEach(c=>c.addEventListener('click',()=>{selectedSlot=c.dataset.id;render();}));
+    root.querySelectorAll('.dom-tip').forEach(b=>b.addEventListener('click',()=>{tipAmount=parseInt(b.dataset.tip);render();}));
+    root.querySelectorAll('.dom-comment').forEach(ta=>ta.addEventListener('input',e=>{optionComments[e.target.dataset.o]=e.target.value;}));
     root.querySelectorAll('input').forEach(inp=>{
-      if(inp.id==='verify-zip'){
-        inp.addEventListener('input',e=>{
-          customer.zip=e.target.value.replace(/\D/g,'');
-          const isValid=/^\d{5}$/.test(customer.zip);
-          const inArea=isValid&&DENVER_ZIPS.has(customer.zip);
-          const btn=root.querySelector('#btn-verify-zip');
-          if(btn){btn.disabled=!inArea;btn.style.cssText=inArea?S.btnPri:S.btnDis;}
-          render();
-        });
-      }
+      if(inp.id==='verify-zip'){inp.addEventListener('input',e=>{customer.zip=e.target.value.replace(/\D/g,'');const isValid=/^\d{5}$/.test(customer.zip);const inArea=isValid&&DENVER_ZIPS.has(customer.zip);const btn=root.querySelector('#btn-verify-zip');if(btn){btn.disabled=!inArea;btn.style.cssText=inArea?S.btnPri:S.btnDis;}render();});}
       else if(inp.id==='c-fn') inp.addEventListener('input',e=>{customer.first_name=e.target.value;});
       else if(inp.id==='c-ln') inp.addEventListener('input',e=>{customer.last_name=e.target.value;});
       else if(inp.id==='c-em') inp.addEventListener('input',e=>{customer.email=e.target.value;});
@@ -885,7 +523,6 @@
     });
   }
 
-  /* ─── Navigation ────────────────────────────────────────────────── */
   function goNext(){
     const steps=flowSteps();
     do{ stepIdx++; }while(stepIdx<steps.length&&shouldSkip(steps[stepIdx]));
@@ -900,7 +537,6 @@
     render();
   }
 
-  /* ─── Fetch timeslots ───────────────────────────────────────────── */
   function fetchSlots(){
     const tvSec=serviceConfig.sections.find(s=>s.stepKey==='size');
     const duration=Math.ceil((totalTVs()*90)/60)*60;
@@ -917,13 +553,9 @@
         }
         render();
       })
-      .catch(e=>{
-        console.error('[widget] fetchSlots error:',e);
-        render();
-      });
+      .catch(e=>{console.error('[widget] fetchSlots error:',e);render();});
   }
 
-  /* ─── Submit booking/quote ──────────────────────────────────────── */
   function doSubmit(root){
     const fnEl=root.querySelector('#c-fn'), fn=(fnEl?.value||'').trim();
     const emEl=root.querySelector('#c-em'), em=(emEl?.value||'').trim();
@@ -931,7 +563,6 @@
     const adEl=root.querySelector('#c-ad'), ad=(adEl?.value||'').trim();
     if(!fn||!em||!ph||!ad){alert('Please fill in all fields.');return;}
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){alert('Invalid email.');return;}
-
     const zbk_selections=[];
     for(const sid in selections){
       if(sid.startsWith('__')) continue;
@@ -941,7 +572,6 @@
         zbk_selections.push(opt);
       }
     }
-
     const kind=selectedService==='tv'?'booking':'quote';
     const payload={
       kind,
@@ -953,7 +583,6 @@
       state:LOCATION.state,
       zbk_selections,
     };
-
     if(selectedService==='tv'&&_stripe&&_stripeCard){
       _stripe.createPaymentMethod({type:'card',card:_stripeCard}).then(r=>{
         if(r.error){alert('Card error: '+r.error.message);return;}
@@ -1013,21 +642,24 @@
       });
   }
 
-  /* ─── Bootstrap ─────────────────────────────────────────────────── */
   function ensureContainer(){
-    let cont=document.getElementById(TARGET_ID);
-    if(!cont){
-      const outer=document.createElement('div');
-      outer.style.cssText=`display:flex!important;justify-content:center!important;width:100%!important;padding:20px!important;`;
-      const inner=document.createElement('div');
-      inner.id=TARGET_ID;
-      inner.style.cssText=`max-width:580px!important;width:100%!important;`;
-      outer.appendChild(inner);
-      const target=document.querySelector('body')||document.documentElement;
-      target.appendChild(outer);
-      cont=inner;
-    }
-    return cont;
+    // Always create fresh outer wrapper (don't reuse existing elements)
+    let existing=document.getElementById('doms-widget-outer');
+    if(existing)return document.getElementById(TARGET_ID);
+    
+    const outer=document.createElement('div');
+    outer.id='doms-widget-outer';
+    outer.style.cssText=`display:flex!important;justify-content:center!important;width:100%!important;padding:20px!important;`;
+    
+    const inner=document.createElement('div');
+    inner.id=TARGET_ID;
+    inner.style.cssText=`max-width:580px!important;width:100%!important;`;
+    
+    outer.appendChild(inner);
+    const target=document.querySelector('body')||document.documentElement;
+    target.appendChild(outer);
+    
+    return inner;
   }
 
   function boot(){
@@ -1035,14 +667,10 @@
     link.rel='stylesheet';
     link.href='https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap';
     document.head.appendChild(link);
-
     if(document.readyState==='loading'){
-      document.addEventListener('DOMContentLoaded',()=>{
-        const c=ensureContainer();
-        render();
-      });
+      document.addEventListener('DOMContentLoaded',()=>{ensureContainer();render();});
     }else{
-      const c=ensureContainer();
+      ensureContainer();
       render();
     }
   }
