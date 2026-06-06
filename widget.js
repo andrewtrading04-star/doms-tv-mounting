@@ -991,7 +991,7 @@
     if(el)return el;
     el=document.createElement('div');
     el.id=TARGET_ID;
-    el.style.cssText='max-width:580px;width:100%;margin:0 auto;padding:20px;box-sizing:border-box;';
+    el.style.cssText='display:block;max-width:580px;width:calc(100% - 40px);margin:0 auto;padding:20px;box-sizing:border-box;position:relative;left:0;right:0;';
     if(SELF_SCRIPT&&SELF_SCRIPT.parentNode)SELF_SCRIPT.parentNode.insertBefore(el,SELF_SCRIPT.nextSibling);
     else document.body.appendChild(el);
     return el;
