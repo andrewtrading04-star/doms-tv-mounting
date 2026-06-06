@@ -12,7 +12,7 @@ export default async function handler(req, res) {
 
   const {
     kind, territory_id, service_id, selectedSlot,
-    customer, city, state, postal_code, zbk_selections, tip,
+    customer, city, state, postal_code, zbk_selections, tip, payment_method_id,
   } = req.body || {};
 
   if (!territory_id)      return res.status(400).json({ error: 'territory_id required' });
@@ -58,7 +58,24 @@ export default async function handler(req, res) {
       console.error('[book] Zenbooker error', r.status, JSON.stringify(data));
       return res.status(r.status).json({ error: data?.error?.message || data?.message || 'Booking failed', details: data });
     }
-    return res.status(200).json({ success: true, job_id: data.job_id || data.id, status: data.status });
+
+    const jobId = data.job_id || data.id;
+
+    // If payment method was saved, add it as a note on the job
+    if (payment_method_id && jobId) {
+      try {
+        await fetch(`https://api.zenbooker.com/v1/jobs/${jobId}/notes`, {
+          method:  'POST',
+          headers: { Authorization: `Bearer ${ZBK_KEY}`, 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ text: `Saved payment method: ${payment_method_id}` }),
+        });
+      } catch (noteErr) {
+        console.warn('[book] Failed to add payment note:', noteErr.message);
+        // Don't fail the whole booking if the note fails
+      }
+    }
+
+    return res.status(200).json({ success: true, job_id: jobId, status: data.status });
   } catch (err) {
     console.error('[book] fetch error:', err.message);
     return res.status(500).json({ error: 'Booking request failed', message: err.message });
