@@ -42,8 +42,8 @@ export default async function handler(req, res) {
       postal_code: postal_code || customer.zip || '',
       country:     'US',
     },
-    email_notifications: true,
-    sms_notifications:   true,
+    email_notifications: false,
+    sms_notifications:   false,
     ...(kind === 'booking' && selectedSlot && { timeslot_id: selectedSlot }),
   };
 
