@@ -12,7 +12,7 @@ export default async function handler(req, res) {
 
   const {
     kind, territory_id, service_id, selectedSlot,
-    customer, city, state, postal_code, zbk_selections,
+    customer, city, state, postal_code, zbk_selections, tip,
   } = req.body || {};
 
   if (!territory_id)      return res.status(400).json({ error: 'territory_id required' });
@@ -26,9 +26,14 @@ export default async function handler(req, res) {
 
   const fullName = `${customer.first_name || ''} ${customer.last_name || ''}`.trim();
 
+  const services = [{ service_id, selections: zbk_selections || [] }];
+  if (tip && Number(tip) > 0) {
+    services.push({ custom_service: { name: 'Tip for technician', price: Number(tip), duration: 0, taxable: false } });
+  }
+
   const payload = {
     territory_id,
-    services: [{ service_id, selections: zbk_selections || [] }],
+    services,
     customer: { name: fullName, email: customer.email, phone: customer.phone },
     address: {
       line1:       customer.address,
