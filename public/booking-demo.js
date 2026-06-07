@@ -57,12 +57,12 @@ class BookingDemo extends HTMLElement {
 
         /* ---------- Social Proof Bar ---------- */
         .proof-bar{
-          display:flex;align-items:center;justify-content:center;gap:48px;margin-bottom:56px;padding:18px 0;
+          display:flex;align-items:center;justify-content:center;gap:84px;margin-bottom:72px;padding:32px 0;
           flex-wrap:wrap;
         }
-        .proof-item{display:flex;align-items:center;gap:12px;font-size:14px;color:var(--mute);font-weight:600}
-        .proof-icon{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;background:var(--tint);border-radius:50%;color:var(--blue);font-weight:800;font-size:12px}
-        .proof-stat{color:var(--ink);font-weight:900;font-size:16px}
+        .proof-item{display:flex;align-items:center;gap:16px;font-size:18px;color:#fff;font-weight:600}
+        .proof-icon{display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;background:var(--blue);border-radius:50%;color:#fff;font-weight:900;font-size:20px}
+        .proof-stat{color:#fff;font-weight:900;font-size:28px}
 
         /* ---------- Header ---------- */
         .head{text-align:center;margin-bottom:56px}
@@ -74,19 +74,11 @@ class BookingDemo extends HTMLElement {
         }
         .badge svg{width:15px;height:15px}
         .head h2{
-          color:var(--ink);font-size:48px;line-height:1.08;font-weight:900;letter-spacing:-1px;
+          color:#fff;font-size:48px;line-height:1.08;font-weight:900;letter-spacing:-1px;
           margin:0 auto 18px;max-width:760px;
         }
-        .head h2 .grad{color:var(--blue)}
-        .head p{color:var(--mute);font-size:18px;line-height:1.6;max-width:560px;margin:0 auto;font-weight:400}
-
-        /* ---------- Pricing Badge (Top Right) ---------- */
-        .price-badge{
-          position:absolute;top:84px;right:24px;background:linear-gradient(135deg,var(--blue) 0%,var(--blue-light) 100%);
-          color:#fff;padding:14px 22px;border-radius:12px;font-weight:800;font-size:16px;
-          box-shadow:0 8px 20px rgba(0,71,171,0.25);z-index:10;
-        }
-        .price-label{display:block;font-size:11px;opacity:.9;margin-bottom:4px;font-weight:600}
+        .head h2 .grad{color:#FFD700}
+        .head p{color:#E8ECEF;font-size:18px;line-height:1.6;max-width:560px;margin:0 auto;font-weight:400}
 
         /* ---------- Steps row ---------- */
         .steps{display:flex;align-items:stretch;justify-content:center;gap:0;padding-top:24px;position:relative}
@@ -207,10 +199,6 @@ class BookingDemo extends HTMLElement {
       </style>
 
       <div class="sec">
-        <div class="price-badge">
-          <span class="price-label">Est. Price</span>
-          <div>$<span id="priceNum">${this.state.estPrice}</span></div>
-        </div>
 
         <div class="wrap">
 
@@ -231,7 +219,7 @@ class BookingDemo extends HTMLElement {
               Easy Booking Process
             </span>
             <h2>Book Your TV Mounting in <span class="grad">3 Simple Steps</span></h2>
-            <p>No phone tag. No waiting. Get your TV mounted on your schedule — booked online in under two minutes.</p>
+            <p>No phone tag. No waiting. Get your TV mounted on your schedule, booked online in under two minutes.</p>
           </div>
 
           <div class="steps">
