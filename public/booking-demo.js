@@ -62,7 +62,7 @@ class BookingDemo extends HTMLElement {
         }
         .proof-item{display:flex;align-items:center;gap:16px;font-size:18px;color:#fff;font-weight:600}
         .proof-icon{display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;background:var(--blue);border-radius:50%;color:#fff;font-weight:900;font-size:20px}
-        .proof-stat{color:#fff;font-weight:900;font-size:28px}
+        .proof-stat{color:#fff;font-weight:900;font-size:44px}
 
         /* ---------- Header ---------- */
         .head{text-align:center;margin-bottom:56px}
@@ -206,10 +206,6 @@ class BookingDemo extends HTMLElement {
             <div class="proof-item">
               <span class="proof-icon">✓</span>
               <span><span class="proof-stat" id="bookingCount">${this.state.bookingsCount}</span> bookings completed</span>
-            </div>
-            <div class="proof-item">
-              <span class="proof-icon">⚡</span>
-              <span><span class="proof-stat" id="completion">${this.state.completionRate}%</span> in under 2 min</span>
             </div>
           </div>
 
@@ -376,18 +372,7 @@ class BookingDemo extends HTMLElement {
   }
 
   book() {
-    const sel = this.getAttribute('booking-target')
-      || '#doms-widget,#doms-widget-container,#booking,#book';
-    let target = null;
-    for (const s of sel.split(',')) {
-      const el = document.querySelector(s.trim());
-      if (el) { target = el; break; }
-    }
-    if (target) {
-      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } else {
-      this.dispatchEvent(new CustomEvent('booking-demo:book', { bubbles: true, composed: true }));
-    }
+    window.location.href = '/book';
   }
 }
 
