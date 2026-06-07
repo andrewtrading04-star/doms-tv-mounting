@@ -1,615 +1,327 @@
+/**
+ * Dom's TV Mounting — "Book in 3 Simple Steps" landing demonstrator
+ * Self-contained Web Component. Drop in with:
+ *   <script src="https://doms-tv-mounting.vercel.app/booking-demo.js"></script>
+ *   <booking-demo></booking-demo>
+ *
+ * Optional attribute:
+ *   booking-target="#doms-widget"   // element to smooth-scroll to on "Book Now"
+ */
 class BookingDemo extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
-    this.state = { step: 1, zip: '', service: 'tv', date: '', selectedFeatures: [] };
-    this.denverZips = new Set(['80001','80002','80003','80004','80005','80006','80007','80010','80011','80012','80013','80014','80015','80016','80017','80018','80019','80020','80021','80022','80023','80024','80025','80026','80027','80030','80031','80033','80034','80035','80036','80037','80038','80040','80041','80042','80044','80045','80046','80047','80101','80102','80103','80104','80105','80106','80107','80108','80109','80110','80111','80112','80113','80116','80117','80118','80120','80121','80122','80123','80124','80125','80126','80127','80128','80129','80130','80134','80135','80136','80137','80138','80150','80151','80155','80160','80161','80162','80163','80165','80166','80201','80202','80203','80204','80205','80206','80207','80208','80209','80210','80211','80212','80214','80215','80216','80217','80218','80219','80220','80221','80222','80223','80224','80225','80226','80227','80228','80229','80230','80231','80232','80233','80234','80235','80236','80237','80238','80239','80240','80241','80242','80243','80244','80246','80247','80248','80249','80250','80251','80252','80256','80257','80259','80260','80261','80262','80263','80264','80265','80266','80270','80271','80273','80274','80275','80279','80280','80281','80282','80290','80291','80293','80294','80295','80299','80301','80302','80303','80304','80305','80310','80314','80401','80402','80403','80419','80465','80516','80601','80602','80603','80614','80640','80642','80643','80654']);
   }
 
   connectedCallback() {
     this.render();
-    this.attachEventListeners();
+    this.init();
   }
 
   render() {
     this.shadowRoot.innerHTML = `
       <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        :host {
-          --blue: #0047AB;
-          --blue-dk: #003580;
-          --blue-light: #5199E4;
-          --tint: #EEF5FB;
-          --ink: #334455;
-          --mute: #777777;
-          --line: #D6DEE7;
-          --radius: 16px;
-          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+        *{margin:0;padding:0;box-sizing:border-box}
+        :host{
+          --blue:#0047AB; --blue-dk:#003580; --blue-light:#5199E4; --blue-bright:#2D7FF0;
+          --tint:#EEF5FB; --ink:#1B2733; --slate:#334455; --mute:#6B7785; --line:#E3E8EF;
+          display:block; width:100%;
+          font-family:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
         }
 
-        .container {
-          max-width: 1200px;
-          margin: 0 auto;
-          padding: 60px 24px;
+        /* ---------- Section + premium self-contained background ---------- */
+        .sec{
+          position:relative; overflow:hidden; width:100%;
+          padding:84px 24px 92px;
+          background:
+            radial-gradient(900px 480px at 12% -5%, rgba(81,153,228,0.28), transparent 60%),
+            radial-gradient(1000px 600px at 110% 18%, rgba(0,71,171,0.45), transparent 55%),
+            linear-gradient(165deg,#031633 0%,#062a63 48%,#0a3f93 100%);
+        }
+        .sec::before{ /* subtle dot grid */
+          content:''; position:absolute; inset:0; pointer-events:none;
+          background-image:radial-gradient(rgba(255,255,255,0.07) 1px, transparent 1.4px);
+          background-size:24px 24px; -webkit-mask-image:linear-gradient(180deg,#000 0%,#000 65%,transparent 100%); mask-image:linear-gradient(180deg,#000 0%,#000 65%,transparent 100%);
+        }
+        .glow{position:absolute;border-radius:50%;filter:blur(70px);pointer-events:none;opacity:.55}
+        .glow.a{width:380px;height:380px;background:#3B82F6;top:-120px;left:-80px}
+        .glow.b{width:420px;height:420px;background:#1E58C9;bottom:-160px;right:-100px}
+        .wrap{position:relative;max-width:1180px;margin:0 auto;z-index:2}
+
+        /* ---------- Header ---------- */
+        .head{text-align:center;margin-bottom:64px}
+        .badge{
+          display:inline-flex;align-items:center;gap:8px;
+          padding:8px 16px;border-radius:999px;margin-bottom:22px;
+          background:rgba(255,255,255,0.10);border:1px solid rgba(255,255,255,0.18);
+          backdrop-filter:blur(8px);
+          color:#EAF2FF;font-size:12.5px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;
+        }
+        .badge svg{width:15px;height:15px;color:#9DC4FF}
+        .head h2{
+          color:#fff;font-size:48px;line-height:1.08;font-weight:900;letter-spacing:-1px;
+          margin:0 auto 18px;max-width:760px;
+        }
+        .head h2 .grad{
+          background:linear-gradient(100deg,#7DB4FF 0%,#5199E4 50%,#9DC4FF 100%);
+          -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+        }
+        .head p{color:#BFD2EC;font-size:18px;line-height:1.6;max-width:560px;margin:0 auto;font-weight:400}
+
+        /* ---------- Steps row ---------- */
+        .steps{display:flex;align-items:stretch;justify-content:center;gap:0;padding-top:34px}
+        .step{position:relative;flex:1 1 0;max-width:360px;display:flex}
+        .bignum{
+          position:absolute;top:-58px;left:50%;transform:translateX(-50%);
+          font-size:150px;font-weight:900;line-height:1;color:rgba(255,255,255,0.07);
+          z-index:0;pointer-events:none;user-select:none;letter-spacing:-4px;
         }
 
-        .header {
-          text-align: center;
-          margin-bottom: 60px;
+        .card{
+          position:relative;z-index:1;width:100%;display:flex;flex-direction:column;
+          background:#fff;border-radius:22px;padding:30px 26px 26px;
+          box-shadow:0 28px 56px rgba(2,16,40,0.42),0 4px 14px rgba(2,16,40,0.18);
+          border:1px solid rgba(255,255,255,0.6);
+          transition:transform .35s cubic-bezier(.4,0,.2,1),box-shadow .35s ease;
         }
+        .card:hover{transform:translateY(-8px);box-shadow:0 40px 72px rgba(2,16,40,0.52),0 8px 20px rgba(2,16,40,0.22)}
 
-        .header h2 {
-          font-size: 42px;
-          font-weight: 800;
-          color: var(--ink);
-          margin-bottom: 16px;
-          letter-spacing: -0.5px;
+        .ico{
+          width:54px;height:54px;border-radius:15px;display:flex;align-items:center;justify-content:center;
+          background:linear-gradient(135deg,var(--blue) 0%,var(--blue-light) 100%);
+          box-shadow:0 12px 24px rgba(0,71,171,0.32);margin-bottom:18px;
         }
+        .ico svg{width:27px;height:27px;color:#fff}
+        .slabel{font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:var(--blue);margin-bottom:7px}
+        .card h3{font-size:21px;font-weight:800;color:var(--ink);margin-bottom:8px;line-height:1.25}
+        .card>p{font-size:14.5px;color:var(--mute);line-height:1.55;margin-bottom:18px}
 
-        .header p {
-          font-size: 18px;
-          color: var(--mute);
-          max-width: 500px;
-          margin: 0 auto;
-          line-height: 1.6;
+        .benefits{list-style:none;display:flex;flex-direction:column;gap:11px;margin-bottom:22px}
+        .benefits li{display:flex;align-items:center;gap:10px;font-size:13.5px;color:var(--slate);font-weight:500}
+        .tick{
+          width:20px;height:20px;border-radius:50%;flex-shrink:0;
+          background:linear-gradient(135deg,var(--blue) 0%,var(--blue-light) 100%);
+          display:flex;align-items:center;justify-content:center;box-shadow:0 4px 8px rgba(0,71,171,0.25)
         }
+        .tick svg{width:11px;height:11px;color:#fff}
 
-        .demo-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 40px;
-          align-items: center;
-          margin-bottom: 40px;
+        /* ---------- Mini preview mockups ---------- */
+        .mini{
+          margin-top:auto;background:linear-gradient(180deg,#F7FAFD 0%,#EEF5FB 100%);
+          border:1px solid var(--line);border-radius:14px;padding:14px;
         }
+        .m-h{font-size:13px;font-weight:800;color:var(--ink);margin-bottom:11px;text-align:center}
 
-        .steps-sidebar {
-          display: flex;
-          flex-direction: column;
-          gap: 24px;
+        .m-zip{display:flex;align-items:stretch;background:#fff;border:1.6px solid var(--blue);border-radius:10px;overflow:hidden}
+        .m-pin{display:flex;align-items:center;padding:0 4px 0 10px}
+        .m-pin svg{width:15px;height:15px;color:var(--blue)}
+        .m-input{flex:1;display:flex;align-items:center;padding:9px 6px;font-size:13px;color:#9AA7B4}
+        .m-go{width:34px;background:var(--blue);display:flex;align-items:center;justify-content:center}
+        .m-go svg{width:15px;height:15px;color:#fff}
+        .m-ok{
+          margin-top:9px;display:flex;align-items:center;justify-content:center;gap:6px;
+          background:#E2F0FB;border:1px solid var(--blue-light);border-radius:8px;padding:7px;
+          font-size:12px;font-weight:700;color:var(--blue-dk)
         }
+        .m-ok svg{width:12px;height:12px;color:var(--blue)}
 
-        .step-card {
-          padding: 32px;
-          border-radius: var(--radius);
-          background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(239,245,251,0.6) 100%);
-          border: 1px solid rgba(214,222,231,0.4);
-          backdrop-filter: blur(10px);
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-          cursor: pointer;
-          position: relative;
-          overflow: hidden;
+        .m-row{display:flex;align-items:center;justify-content:space-between;background:#fff;border:1.5px solid var(--line);border-radius:9px;padding:9px 11px;margin-bottom:8px;font-size:12.5px;color:var(--slate);font-weight:600}
+        .m-row:last-child{margin-bottom:0}
+        .m-row.sel{background:var(--tint);border-color:var(--blue)}
+        .m-qty{display:inline-flex;align-items:center;gap:8px;color:var(--blue);font-weight:800}
+        .m-qty b{display:inline-flex;width:20px;height:20px;border-radius:5px;background:var(--tint);align-items:center;justify-content:center;font-size:13px;border:1px solid var(--line)}
+
+        .m-dates{display:flex;gap:7px;margin-bottom:10px}
+        .m-d{flex:1;text-align:center;background:#fff;border:1.5px solid var(--line);border-radius:8px;padding:7px 0;font-size:12px;font-weight:700;color:var(--slate)}
+        .m-d.sel{background:var(--blue);border-color:var(--blue);color:#fff;box-shadow:0 6px 12px rgba(0,71,171,0.25)}
+        .m-times{display:flex;gap:7px}
+        .m-t{flex:1;text-align:center;background:#fff;border:1.5px solid var(--line);border-radius:8px;padding:7px 0;font-size:11.5px;font-weight:600;color:var(--mute)}
+        .m-t.sel{background:var(--blue);border-color:var(--blue);color:#fff}
+
+        /* ---------- Arrows between steps ---------- */
+        .arrow{flex:0 0 auto;align-self:center;display:flex;align-items:center;justify-content:center;padding:0 6px;color:#7DB4FF;z-index:3}
+        .arrow svg{width:30px;height:30px;animation:slide 1.6s ease-in-out infinite;filter:drop-shadow(0 2px 6px rgba(125,180,255,0.5))}
+        .arrow svg:nth-child(2){animation-delay:.2s;opacity:.55;margin-left:-14px}
+        @keyframes slide{0%,100%{transform:translateX(-3px)}50%{transform:translateX(4px)}}
+
+        /* ---------- CTA ---------- */
+        .cta-wrap{text-align:center;margin-top:62px}
+        .cta{
+          display:inline-flex;align-items:center;gap:10px;cursor:pointer;border:none;
+          padding:17px 38px;border-radius:14px;font-family:inherit;font-size:17px;font-weight:800;color:#fff;
+          background:linear-gradient(135deg,var(--blue-bright) 0%,var(--blue-light) 100%);
+          box-shadow:0 16px 34px rgba(45,127,240,0.45);
+          transition:transform .25s ease,box-shadow .25s ease;
         }
+        .cta:hover{transform:translateY(-3px) scale(1.015);box-shadow:0 22px 46px rgba(45,127,240,0.6)}
+        .cta:active{transform:translateY(0)}
+        .cta svg{width:19px;height:19px;transition:transform .25s ease}
+        .cta:hover svg{transform:translateX(4px)}
+        .cta-sub{margin-top:16px;color:#AEC6E8;font-size:13.5px;font-weight:500}
 
-        .step-card::before {
-          content: '';
-          position: absolute;
-          inset: 0;
-          background: linear-gradient(135deg, transparent 0%, rgba(0,71,171,0.05) 100%);
-          pointer-events: none;
+        /* ---------- Scroll-reveal ---------- */
+        .reveal{opacity:0;transform:translateY(26px);transition:opacity .7s ease,transform .7s cubic-bezier(.2,.7,.2,1)}
+        .reveal.in{opacity:1;transform:none}
+
+        /* ---------- Responsive ---------- */
+        @media(max-width:920px){
+          .sec{padding:64px 18px 72px}
+          .head h2{font-size:34px}
+          .head p{font-size:16px}
+          .steps{flex-direction:column;align-items:center;gap:0;padding-top:48px}
+          .step{max-width:460px;width:100%}
+          .bignum{font-size:120px;top:-46px}
+          .arrow{padding:10px 0}
+          .arrow svg{transform:rotate(90deg);animation:slidev 1.6s ease-in-out infinite}
+          .arrow svg:nth-child(2){margin-left:0;margin-top:-14px}
+          @keyframes slidev{0%,100%{transform:rotate(90deg) translateX(-3px)}50%{transform:rotate(90deg) translateX(4px)}}
         }
-
-        .step-card.active {
-          background: linear-gradient(135deg, rgba(0,71,171,0.08) 0%, rgba(81,153,228,0.04) 100%);
-          border: 1.5px solid var(--blue-light);
-          box-shadow: 0 20px 40px rgba(0,71,171,0.12);
-          transform: translateY(-4px);
-        }
-
-        .step-number {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          width: 44px;
-          height: 44px;
-          border-radius: 50%;
-          background: linear-gradient(135deg, var(--blue) 0%, var(--blue-light) 100%);
-          color: white;
-          font-size: 20px;
-          font-weight: 800;
-          margin-bottom: 16px;
-          transition: all 0.3s ease;
-        }
-
-        .step-card.active .step-number {
-          box-shadow: 0 12px 28px rgba(0,71,171,0.25);
-          transform: scale(1.1);
-        }
-
-        .step-title {
-          font-size: 20px;
-          font-weight: 700;
-          color: var(--ink);
-          margin-bottom: 8px;
-        }
-
-        .step-desc {
-          font-size: 14px;
-          color: var(--mute);
-          line-height: 1.6;
-          margin-bottom: 16px;
-        }
-
-        .step-features {
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-        }
-
-        .feature {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          font-size: 13px;
-          color: var(--ink);
-        }
-
-        .feature-icon {
-          width: 20px;
-          height: 20px;
-          border-radius: 50%;
-          background: var(--tint);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: var(--blue);
-          font-weight: 700;
-          flex-shrink: 0;
-        }
-
-        .demo-window {
-          background: linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(239,245,251,0.4) 100%);
-          border: 1px solid rgba(214,222,231,0.5);
-          border-radius: var(--radius);
-          backdrop-filter: blur(12px);
-          overflow: hidden;
-          box-shadow: 0 40px 80px rgba(0,0,0,0.12);
-          display: flex;
-          flex-direction: column;
-          min-height: 600px;
-          position: relative;
-        }
-
-        .demo-header {
-          padding: 24px;
-          background: linear-gradient(135deg, var(--blue) 0%, var(--blue-light) 100%);
-          color: white;
-          text-align: center;
-          border-bottom: 1px solid rgba(0,0,0,0.08);
-        }
-
-        .demo-header h3 {
-          font-size: 18px;
-          font-weight: 700;
-          margin-bottom: 4px;
-        }
-
-        .demo-header p {
-          font-size: 13px;
-          opacity: 0.9;
-        }
-
-        .demo-content {
-          padding: 48px 32px;
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          gap: 24px;
-          animation: fadeIn 0.4s ease;
-        }
-
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(8px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-
-        .demo-step {
-          display: none;
-        }
-
-        .demo-step.active {
-          display: block;
-        }
-
-        .input-group {
-          display: flex;
-          gap: 12px;
-        }
-
-        .input-field {
-          flex: 1;
-          padding: 14px 16px;
-          border: 1.5px solid var(--line);
-          border-radius: 10px;
-          background: rgba(247,250,252,0.6);
-          font-size: 15px;
-          color: var(--ink);
-          transition: all 0.3s ease;
-        }
-
-        .input-field:focus {
-          outline: none;
-          border-color: var(--blue);
-          background: white;
-          box-shadow: 0 4px 12px rgba(0,71,171,0.1);
-        }
-
-        .input-field::placeholder {
-          color: var(--mute);
-        }
-
-        .btn-submit {
-          padding: 12px 24px;
-          background: linear-gradient(135deg, var(--blue) 0%, var(--blue-light) 100%);
-          color: white;
-          border: none;
-          border-radius: 10px;
-          font-size: 14px;
-          font-weight: 700;
-          cursor: pointer;
-          transition: all 0.3s ease;
-          box-shadow: 0 8px 16px rgba(0,71,171,0.2);
-          width: fit-content;
-        }
-
-        .btn-submit:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 12px 24px rgba(0,71,171,0.3);
-        }
-
-        .btn-submit:active {
-          transform: translateY(0);
-        }
-
-        .question {
-          background: rgba(239,245,251,0.4);
-          padding: 16px;
-          border-radius: 10px;
-          margin-bottom: 12px;
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          border: 1.5px solid transparent;
-        }
-
-        .question:hover {
-          background: rgba(81,153,228,0.08);
-          border-color: var(--blue-light);
-        }
-
-        .question.selected {
-          background: rgba(0,71,171,0.08);
-          border-color: var(--blue);
-        }
-
-        .checkbox {
-          width: 20px;
-          height: 20px;
-          border: 2px solid var(--line);
-          border-radius: 6px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: all 0.2s ease;
-        }
-
-        .question.selected .checkbox {
-          background: var(--blue);
-          border-color: var(--blue);
-          color: white;
-        }
-
-        .question-text {
-          font-size: 14px;
-          color: var(--ink);
-          font-weight: 500;
-        }
-
-        .date-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
-          gap: 12px;
-          margin-bottom: 16px;
-        }
-
-        .date-btn {
-          padding: 12px;
-          background: white;
-          border: 1.5px solid var(--line);
-          border-radius: 10px;
-          cursor: pointer;
-          text-align: center;
-          transition: all 0.2s ease;
-          font-size: 13px;
-          color: var(--ink);
-          font-weight: 600;
-        }
-
-        .date-btn:hover {
-          border-color: var(--blue);
-          background: var(--tint);
-        }
-
-        .date-btn.selected {
-          background: var(--blue);
-          color: white;
-          border-color: var(--blue);
-          box-shadow: 0 8px 16px rgba(0,71,171,0.2);
-        }
-
-        .time-grid {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 10px;
-        }
-
-        .time-btn {
-          padding: 10px;
-          background: white;
-          border: 1.5px solid var(--line);
-          border-radius: 8px;
-          cursor: pointer;
-          text-align: center;
-          transition: all 0.2s ease;
-          font-size: 12px;
-          color: var(--mute);
-          font-weight: 500;
-        }
-
-        .time-btn:hover {
-          border-color: var(--blue-light);
-          background: var(--tint);
-        }
-
-        .time-btn.selected {
-          background: var(--blue);
-          color: white;
-          border-color: var(--blue);
-        }
-
-        .error-msg {
-          padding: 12px 16px;
-          background: #FFE5E5;
-          border: 1px solid #FF9999;
-          border-radius: 8px;
-          color: #C53030;
-          font-size: 13px;
-          margin-top: 12px;
-        }
-
-        .success-msg {
-          padding: 16px;
-          background: linear-gradient(135deg, rgba(0,71,171,0.08) 0%, rgba(81,153,228,0.04) 100%);
-          border: 1px solid var(--blue-light);
-          border-radius: 10px;
-          color: var(--blue);
-          font-size: 14px;
-          font-weight: 600;
-          text-align: center;
-        }
-
-        @media (max-width: 900px) {
-          .demo-grid {
-            grid-template-columns: 1fr;
-            gap: 24px;
-          }
-
-          .header h2 {
-            font-size: 32px;
-          }
-
-          .demo-window {
-            min-height: auto;
-          }
-        }
+        @media(max-width:420px){ .head h2{font-size:28px} }
       </style>
 
-      <div class="container">
-        <div class="header">
-          <h2>Book in 3 Simple Steps</h2>
-          <p>See how fast and easy it is to schedule your TV mounting service online. No calls, no waiting—just a smooth, seamless experience.</p>
-        </div>
+      <div class="sec">
+        <div class="glow a"></div>
+        <div class="glow b"></div>
+        <div class="wrap">
 
-        <div class="demo-grid">
-          <div class="steps-sidebar">
-            <div class="step-card active" data-step="1">
-              <div class="step-number">1</div>
-              <div class="step-title">Enter Your ZIP Code</div>
-              <div class="step-desc">We'll check if we service your area instantly.</div>
-              <div class="step-features">
-                <div class="feature">
-                  <div class="feature-icon">✓</div>
-                  <span>Real-time availability check</span>
-                </div>
-                <div class="feature">
-                  <div class="feature-icon">✓</div>
-                  <span>Denver metro coverage</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="step-card" data-step="2">
-              <div class="step-number">2</div>
-              <div class="step-title">Answer Quick Questions</div>
-              <div class="step-desc">Just a few details about your TV and space.</div>
-              <div class="step-features">
-                <div class="feature">
-                  <div class="feature-icon">✓</div>
-                  <span>Takes less than 2 minutes</span>
-                </div>
-                <div class="feature">
-                  <div class="feature-icon">✓</div>
-                  <span>Instant pricing</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="step-card" data-step="3">
-              <div class="step-number">3</div>
-              <div class="step-title">Pick Your Date & Time</div>
-              <div class="step-desc">Choose what works best for your schedule.</div>
-              <div class="step-features">
-                <div class="feature">
-                  <div class="feature-icon">✓</div>
-                  <span>Same-day appointments available</span>
-                </div>
-                <div class="feature">
-                  <div class="feature-icon">✓</div>
-                  <span>Instant confirmation</span>
-                </div>
-              </div>
-            </div>
+          <div class="head reveal">
+            <span class="badge">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4.5 13.5H11l-1 8.5 8.5-11.5H12z"/></svg>
+              Easy Booking Process
+            </span>
+            <h2>Book Your TV Mounting in <span class="grad">3 Simple Steps</span></h2>
+            <p>No phone tag. No waiting. Get your TV mounted on your schedule — booked online in under two minutes.</p>
           </div>
 
-          <div class="demo-window">
-            <div class="demo-header">
-              <h3>Live Demo</h3>
-              <p>Step ${this.state.step} of 3</p>
+          <div class="steps">
+
+            <!-- STEP 1 -->
+            <div class="step reveal">
+              <div class="bignum">1</div>
+              <div class="card">
+                <div class="ico">
+                  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>
+                </div>
+                <div class="slabel">Step 1</div>
+                <h3>Enter Your ZIP Code</h3>
+                <p>Confirm we serve your area — instantly, before anything else.</p>
+                <ul class="benefits">
+                  <li><span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>Real-time coverage check</li>
+                  <li><span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>All of the Denver metro</li>
+                </ul>
+                <div class="mini">
+                  <div class="m-h">Do we service your area?</div>
+                  <div class="m-zip">
+                    <span class="m-pin"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg></span>
+                    <span class="m-input">ZIP Code</span>
+                    <span class="m-go"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+                  </div>
+                  <div class="m-ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>We service your area!</div>
+                </div>
+              </div>
             </div>
 
-            <div class="demo-content">
-              <!-- Step 1: ZIP Code -->
-              <div class="demo-step ${this.state.step === 1 ? 'active' : ''}">
-                <h3 style="font-size: 22px; color: var(--ink); margin-bottom: 8px;">Check to see if we service your zip code</h3>
-                <p style="color: var(--mute); margin-bottom: 20px; font-size: 14px;">Enter your zip code to confirm coverage</p>
-                <div class="input-group">
-                  <input type="text" class="input-field" id="zipInput" placeholder="ZIP Code" maxlength="5" inputmode="numeric" />
-                  <button class="btn-submit" id="zipBtn">Check</button>
-                </div>
-                <div id="zipMsg"></div>
-              </div>
-
-              <!-- Step 2: Questions -->
-              <div class="demo-step ${this.state.step === 2 ? 'active' : ''}">
-                <h3 style="font-size: 22px; color: var(--ink); margin-bottom: 8px;">Tell us about your TV</h3>
-                <p style="color: var(--mute); margin-bottom: 20px; font-size: 14px;">Just a few quick details</p>
-                <div>
-                  <div class="question ${this.state.selectedFeatures.includes('size') ? 'selected' : ''}" id="q1">
-                    <div class="checkbox">✓</div>
-                    <div class="question-text">TV size is 55" or larger</div>
-                  </div>
-                  <div class="question ${this.state.selectedFeatures.includes('wire') ? 'selected' : ''}" id="q2">
-                    <div class="checkbox">✓</div>
-                    <div class="question-text">Hide wires behind the wall</div>
-                  </div>
-                  <div class="question ${this.state.selectedFeatures.includes('mount') ? 'selected' : ''}" id="q3">
-                    <div class="checkbox">✓</div>
-                    <div class="question-text">Need to remove old mount</div>
-                  </div>
-                </div>
-                <button class="btn-submit" style="margin-top: 20px;" id="nextBtn">Continue to Dates</button>
-              </div>
-
-              <!-- Step 3: Date & Time -->
-              <div class="demo-step ${this.state.step === 3 ? 'active' : ''}">
-                <h3 style="font-size: 22px; color: var(--ink); margin-bottom: 8px;">Pick your date and time</h3>
-                <p style="color: var(--mute); margin-bottom: 20px; font-size: 14px;">Choose what works for you</p>
-                <div>
-                  <div style="margin-bottom: 16px; font-weight: 600; color: var(--ink); font-size: 13px;">Select a date:</div>
-                  <div class="date-grid">
-                    <button class="date-btn ${this.state.date === 'tomorrow' ? 'selected' : ''}" id="dateBtn1">Tomorrow</button>
-                    <button class="date-btn ${this.state.date === 'thu' ? 'selected' : ''}" id="dateBtn2">Thursday</button>
-                    <button class="date-btn ${this.state.date === 'fri' ? 'selected' : ''}" id="dateBtn3">Friday</button>
-                    <button class="date-btn ${this.state.date === 'sat' ? 'selected' : ''}" id="dateBtn4">Saturday</button>
-                  </div>
-                </div>
-                <div style="margin-top: 20px;">
-                  <div style="margin-bottom: 12px; font-weight: 600; color: var(--ink); font-size: 13px;">Select a time:</div>
-                  <div class="time-grid">
-                    <button class="time-btn">8:00 AM</button>
-                    <button class="time-btn">10:00 AM</button>
-                    <button class="time-btn">2:00 PM</button>
-                    <button class="time-btn">4:00 PM</button>
-                  </div>
-                </div>
-                <button class="btn-submit" style="margin-top: 24px; width: 100%; background: linear-gradient(135deg, var(--blue) 0%, var(--blue-light) 100%);" id="completeBtn">Complete Booking</button>
-              </div>
-
-              <div id="completionMsg"></div>
+            <div class="arrow reveal">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
             </div>
+
+            <!-- STEP 2 -->
+            <div class="step reveal">
+              <div class="bignum">2</div>
+              <div class="card">
+                <div class="ico">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12l2 2 4-4"/></svg>
+                </div>
+                <div class="slabel">Step 2</div>
+                <h3>Answer a Few Questions</h3>
+                <p>Tell us about your TV and wall — pricing updates as you go.</p>
+                <ul class="benefits">
+                  <li><span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>Takes less than 2 minutes</li>
+                  <li><span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>Instant, upfront pricing</li>
+                </ul>
+                <div class="mini">
+                  <div class="m-h">What size is your TV?</div>
+                  <div class="m-row"><span>33"&ndash;59"</span><span class="m-qty">&minus; <b>0</b> +</span></div>
+                  <div class="m-row sel"><span>60"&ndash;69"</span><span class="m-qty">&minus; <b>1</b> +</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="arrow reveal">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+
+            <!-- STEP 3 -->
+            <div class="step reveal">
+              <div class="bignum">3</div>
+              <div class="card">
+                <div class="ico">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="m9 16 2 2 4-4"/></svg>
+                </div>
+                <div class="slabel">Step 3</div>
+                <h3>Pick a Date &amp; Time</h3>
+                <p>Choose a slot that works for you and lock it in instantly.</p>
+                <ul class="benefits">
+                  <li><span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>Same-day slots available</li>
+                  <li><span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>Instant confirmation</li>
+                </ul>
+                <div class="mini">
+                  <div class="m-h">Pick a date &amp; time</div>
+                  <div class="m-dates"><span class="m-d">Fri</span><span class="m-d sel">Sat</span><span class="m-d">Mon</span></div>
+                  <div class="m-times"><span class="m-t sel">8&ndash;10 AM</span><span class="m-t">11&ndash;1 PM</span></div>
+                </div>
+              </div>
+            </div>
+
           </div>
+
+          <div class="cta-wrap reveal">
+            <button class="cta" id="ctaBtn">
+              Book Your TV Mounting Now
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            </button>
+            <div class="cta-sub">Takes under 2 minutes &nbsp;•&nbsp; No obligation &nbsp;•&nbsp; Instant confirmation</div>
+          </div>
+
         </div>
       </div>
     `;
   }
 
-  attachEventListeners() {
-    const zipInput = this.shadowRoot.getElementById('zipInput');
-    const zipBtn = this.shadowRoot.getElementById('zipBtn');
-    const nextBtn = this.shadowRoot.getElementById('nextBtn');
-    const completeBtn = this.shadowRoot.getElementById('completeBtn');
-    const stepCards = this.shadowRoot.querySelectorAll('.step-card');
-    const questions = this.shadowRoot.querySelectorAll('.question');
-    const dateBtns = this.shadowRoot.querySelectorAll('.date-btn');
-
-    zipBtn?.addEventListener('click', () => this.validateZip());
-    zipInput?.addEventListener('keypress', (e) => e.key === 'Enter' && this.validateZip());
-
-    nextBtn?.addEventListener('click', () => this.goToStep(3));
-
-    completeBtn?.addEventListener('click', () => {
-      this.shadowRoot.getElementById('completionMsg').innerHTML = `
-        <div class="success-msg" style="margin-top: 24px;">
-          ✓ Booking confirmed! Check your email for details.
-        </div>
-      `;
-      setTimeout(() => this.goToStep(1), 3000);
-    });
-
-    stepCards.forEach(card => {
-      card.addEventListener('click', () => {
-        const step = parseInt(card.dataset.step);
-        if (step <= this.state.step) this.goToStep(step);
+  init() {
+    // Staggered scroll-reveal
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((e) => {
+        if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
       });
+    }, { threshold: 0.12 });
+    this.shadowRoot.querySelectorAll('.reveal').forEach((el, i) => {
+      el.style.transitionDelay = (i * 0.09) + 's';
+      io.observe(el);
     });
 
-    questions.forEach(q => {
-      q.addEventListener('click', () => {
-        const id = q.id;
-        const feature = id === 'q1' ? 'size' : id === 'q2' ? 'wire' : 'mount';
-        if (this.state.selectedFeatures.includes(feature)) {
-          this.state.selectedFeatures = this.state.selectedFeatures.filter(f => f !== feature);
-        } else {
-          this.state.selectedFeatures.push(feature);
-        }
-        this.render();
-        this.attachEventListeners();
-      });
-    });
-
-    dateBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        this.state.date = btn.textContent.toLowerCase();
-        this.render();
-        this.attachEventListeners();
-      });
-    });
+    // "Book Now" -> smooth-scroll to the real booking widget if present on the page
+    const cta = this.shadowRoot.getElementById('ctaBtn');
+    cta && cta.addEventListener('click', () => this.book());
   }
 
-  validateZip() {
-    const input = this.shadowRoot.getElementById('zipInput');
-    const msg = this.shadowRoot.getElementById('zipMsg');
-    const zip = input.value.trim();
-
-    if (!/^\d{5}$/.test(zip)) {
-      msg.innerHTML = '<div class="error-msg">Please enter a valid 5-digit ZIP code</div>';
-      return;
+  book() {
+    const sel = this.getAttribute('booking-target')
+      || '#doms-widget,#doms-widget-container,#booking,#book';
+    let target = null;
+    for (const s of sel.split(',')) {
+      const el = document.querySelector(s.trim());
+      if (el) { target = el; break; }
     }
-
-    if (this.denverZips.has(zip)) {
-      msg.innerHTML = '<div class="success-msg" style="margin-top: 12px;">✓ Great! We service your area.</div>';
-      setTimeout(() => this.goToStep(2), 800);
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } else {
-      msg.innerHTML = '<div class="error-msg">We don\'t currently service that ZIP code, but we\'re expanding soon!</div>';
+      // No widget on this page — let the host page decide what to do.
+      this.dispatchEvent(new CustomEvent('booking-demo:book', { bubbles: true, composed: true }));
     }
-  }
-
-  goToStep(step) {
-    this.state.step = step;
-    this.render();
-    this.attachEventListeners();
   }
 }
 
