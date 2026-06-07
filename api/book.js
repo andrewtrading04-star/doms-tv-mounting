@@ -104,18 +104,25 @@ export default async function handler(req, res) {
           const db = new URLSearchParams(); db.set('invoice_settings[default_payment_method]', payment_method_id);
 
           // 4) Link the Zenbooker customer to this Stripe customer so Zenbooker displays the card in the Payment Methods section.
-          if (zbkCustomerId) {
-            try {
-              await fetch(`https://api.zenbooker.com/v1/customers/${zbkCustomerId}`, {
+          try {
+            let zbkCustToUpdate = zbkCustomerId;
+            if (!zbkCustToUpdate) {
+              const cr = await fetch(`https://api.zenbooker.com/v1/customers?email=${encodeURIComponent(customer.email)}&limit=10`, { headers: { Authorization: `Bearer ${ZBK_KEY}` } });
+              const cj = await cr.json().catch(() => ({}));
+              const results = cj.results || cj.data || [];
+              const cust = results.find(c => (c.email || '').toLowerCase() === (customer.email || '').toLowerCase());
+              zbkCustToUpdate = cust?.id;
+            }
+            if (zbkCustToUpdate) {
+              await fetch(`https://api.zenbooker.com/v1/customers/${zbkCustToUpdate}`, {
                 method: "PATCH",
                 headers: { Authorization: `Bearer ${ZBK_KEY}`, "Content-Type": "application/json" },
                 body: JSON.stringify({ stripe_customer_id: stripeCustomerId }),
               });
-            } catch (updateErr) {
-              console.warn("[book] Failed to link Zenbooker customer to Stripe:", updateErr.message);
             }
+          } catch (updateErr) {
+            console.warn("[book] Failed to link Zenbooker customer to Stripe:", updateErr.message);
           }
-          await fetch(`https://api.stripe.com/v1/customers/${stripeCustomerId}`, { method: 'POST', headers: sAuth, body: db });
 
           const brand = pm?.card?.brand || 'card';
           const last4 = pm?.card?.last4 || '????';
