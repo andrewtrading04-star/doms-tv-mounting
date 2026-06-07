@@ -16,7 +16,7 @@ class BookingDemo extends HTMLElement {
       selectedTV: 0,
       selectedBracket: 0,
       estPrice: 0,
-      bookingsCount: 2847,
+      bookingsCount: 3847,
       completionRate: 95,
     };
   }
@@ -50,14 +50,14 @@ class BookingDemo extends HTMLElement {
         /* ---------- Transparent section ---------- */
         .sec{
           position:relative; width:100%;
-          padding:84px 24px 92px;
+          padding:40px 24px 92px;
           background:transparent;
         }
         .wrap{position:relative;max-width:1180px;margin:0 auto;z-index:2}
 
         /* ---------- Social Proof Bar ---------- */
         .proof-bar{
-          display:flex;align-items:center;justify-content:center;gap:84px;margin-bottom:72px;padding:32px 0;
+          display:flex;align-items:center;justify-content:center;gap:84px;margin-bottom:48px;padding:0;
           flex-wrap:wrap;
         }
         .proof-item{display:flex;align-items:center;gap:16px;font-size:18px;color:#fff;font-weight:600}
@@ -183,7 +183,7 @@ class BookingDemo extends HTMLElement {
 
         /* ---------- Responsive ---------- */
         @media(max-width:920px){
-          .sec{padding:64px 18px 72px}
+          .sec{padding:28px 18px 72px}
           .price-badge{position:static;margin-bottom:24px;text-align:center}
           .head h2{font-size:34px}
           .head p{font-size:16px}
@@ -205,7 +205,7 @@ class BookingDemo extends HTMLElement {
           <div class="proof-bar reveal">
             <div class="proof-item">
               <span class="proof-icon">✓</span>
-              <span><span class="proof-stat" id="bookingCount">${this.state.bookingsCount}</span> bookings completed</span>
+              <span><span class="proof-stat" id="bookingCount">${this.state.bookingsCount}</span> Real customer bookings</span>
             </div>
           </div>
 
