@@ -335,19 +335,6 @@ class BookingDemoHandy extends HTMLElement {
       });
     });
 
-    // Pricing interaction (Step 2)
-    this.shadowRoot.querySelectorAll('.m-qty').forEach((qty) => {
-      const inc = qty.querySelector('+ span') || qty.nextElementSibling;
-      if (inc && inc.textContent.includes('+')) {
-        qty.addEventListener('click', () => {
-          this.state.selectedTV = Math.min(this.state.selectedTV + 1, 5);
-          this.calculatePrice();
-          this.updatePrice();
-          this.updateCardStates();
-        });
-      }
-    });
-
     // "Book Now" CTA
     const cta = this.shadowRoot.getElementById('ctaBtn');
     cta && cta.addEventListener('click', () => this.book());
