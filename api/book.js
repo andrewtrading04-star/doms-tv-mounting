@@ -27,7 +27,26 @@ export default async function handler(req, res) {
 
   const fullName = `${customer.first_name || ''} ${customer.last_name || ''}`.trim();
 
-  const services = [{ service_id, selections: zbk_selections || [] }];
+  // Zenbooker expects selections grouped per section, each with a selected_options array:
+  //   [{ section_id, selected_options: [{ option_id, quantity, comments }] }]
+  // The widget sends a flat list [{ section_id, option_id, quantity, comment }]; normalize here.
+  const _grouped = {}; const _order = [];
+  for (const sel of (zbk_selections || [])) {
+    if (!sel || !sel.section_id) continue;
+    if (!_grouped[sel.section_id]) { _grouped[sel.section_id] = []; _order.push(sel.section_id); }
+    if (Array.isArray(sel.selected_options)) {
+      for (const o of sel.selected_options) _grouped[sel.section_id].push(o);
+      continue;
+    }
+    if (!sel.option_id) continue;
+    const opt = { option_id: sel.option_id };
+    if (sel.quantity != null) opt.quantity = Number(sel.quantity);
+    const c = sel.comments || sel.comment;
+    if (c) opt.comments = c;
+    _grouped[sel.section_id].push(opt);
+  }
+  const selections = _order.map((sid) => ({ section_id: sid, selected_options: _grouped[sid] }));
+  const services = [{ service_id, selections }];
   if (tip && Number(tip) > 0) {
     services.push({ custom_service: { name: 'Tip for technician', price: Number(tip), duration: 0, taxable: false } });
   }
