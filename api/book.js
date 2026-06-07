@@ -47,17 +47,6 @@ export default async function handler(req, res) {
   }
   const selections = _order.map((sid) => ({ section_id: sid, selected_options: _grouped[sid] }));
   const services = [{ service_id, selections }];
-  if (tip && Number(tip) > 0) {
-    services.push({ custom_service: { name: 'Tip for technician', price: Number(tip), duration: 0, taxable: false } });
-  }
-
-  // Add tax (8.25%) as a line item, based on the subtotal the customer saw in the widget.
-  const TAX_RATE = 0.0825;
-  const taxBase = Number(subtotal) || 0;
-  const taxAmount = Math.round(taxBase * TAX_RATE * 100) / 100;
-  if (taxAmount > 0) {
-    services.push({ custom_service: { name: 'Tax (8.25%)', price: taxAmount, duration: 0, taxable: false } });
-  }
 
   const payload = {
     territory_id,
