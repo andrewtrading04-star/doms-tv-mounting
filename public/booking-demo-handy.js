@@ -369,7 +369,7 @@ class BookingDemoHandy extends HTMLElement {
   }
 
   book() {
-    window.location.href = '/book';
+    window.location.href = 'https://widget.zenbooker.com/book/domstvmounting?category=1772706842208x666810306917826600';
   }
 }
 
