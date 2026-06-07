@@ -175,7 +175,7 @@ class BookingDemo extends HTMLElement {
         .cta:active{transform:translateY(0)}
         .cta svg{width:19px;height:19px;transition:transform .25s ease}
         .cta:hover svg{transform:translateX(4px)}
-        .cta-sub{margin-top:16px;color:var(--mute);font-size:13.5px;font-weight:500}
+        .cta-sub{margin-top:16px;color:#fff;font-size:13.5px;font-weight:500}
 
         /* ---------- Reveal ---------- */
         .reveal{opacity:0;transform:translateY(26px);transition:opacity .7s ease,transform .7s cubic-bezier(.2,.7,.2,1)}
