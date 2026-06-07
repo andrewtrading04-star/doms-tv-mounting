@@ -31,6 +31,23 @@ export default async function handler(req, res) {
     services.push({ custom_service: { name: 'Tip for technician', price: Number(tip), duration: 0, taxable: false } });
   }
 
+  // Calculate subtotal from service selections and add tax as a line item
+  const TAX_RATE = 0.0825;
+  let subtotal = 0;
+  for (const sel of (zbk_selections || [])) {
+    const selOpts = sel.selected_options || [];
+    for (const opt of selOpts) {
+      subtotal += (opt.price || 0) * (opt.quantity || 1);
+    }
+    if (sel.option_id && !sel.selected_options) {
+      subtotal += (sel.price || 0);
+    }
+  }
+  const taxAmount = Math.round(subtotal * TAX_RATE * 100) / 100;
+  if (taxAmount > 0) {
+    services.push({ custom_service: { name: `Tax (8.25%)`, price: taxAmount, duration: 0, taxable: false } });
+  }
+
   const payload = {
     territory_id,
     services,
