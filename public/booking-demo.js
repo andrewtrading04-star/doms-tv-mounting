@@ -1,5 +1,5 @@
 /**
- * Dom's TV Mounting — "Book in 3 Simple Steps" landing demonstrator
+ * Dom's TV Mounting — "Book in 3 Simple Steps" with Interactive Preview, Pricing & Social Proof
  * Self-contained Web Component. Drop in with:
  *   <script src="https://doms-tv-mounting.vercel.app/booking-demo.js"></script>
  *   <booking-demo></booking-demo>
@@ -11,11 +11,28 @@ class BookingDemo extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
+    this.state = {
+      expandedStep: null,
+      selectedTV: 0,
+      selectedBracket: 0,
+      estPrice: 0,
+      bookingsCount: 2847,
+      completionRate: 95,
+    };
   }
 
   connectedCallback() {
+    this.calculatePrice();
     this.render();
     this.init();
+  }
+
+  calculatePrice() {
+    // Base pricing
+    const tvSizes = [95, 115, 125, 145, 180, 240];
+    const brackets = [0, 50, 60, 110];
+    const basePrice = tvSizes[this.state.selectedTV] + brackets[this.state.selectedBracket];
+    this.state.estPrice = basePrice;
   }
 
   render() {
@@ -30,68 +47,77 @@ class BookingDemo extends HTMLElement {
           font-family:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
         }
 
-        /* ---------- Section + premium self-contained background ---------- */
+        /* ---------- Transparent section ---------- */
         .sec{
-          position:relative; overflow:hidden; width:100%;
+          position:relative; width:100%;
           padding:84px 24px 92px;
-          background:
-            radial-gradient(900px 480px at 12% -5%, rgba(81,153,228,0.28), transparent 60%),
-            radial-gradient(1000px 600px at 110% 18%, rgba(0,71,171,0.45), transparent 55%),
-            linear-gradient(165deg,#031633 0%,#062a63 48%,#0a3f93 100%);
+          background:transparent;
         }
-        .sec::before{ /* subtle dot grid */
-          content:''; position:absolute; inset:0; pointer-events:none;
-          background-image:radial-gradient(rgba(255,255,255,0.07) 1px, transparent 1.4px);
-          background-size:24px 24px; -webkit-mask-image:linear-gradient(180deg,#000 0%,#000 65%,transparent 100%); mask-image:linear-gradient(180deg,#000 0%,#000 65%,transparent 100%);
-        }
-        .glow{position:absolute;border-radius:50%;filter:blur(70px);pointer-events:none;opacity:.55}
-        .glow.a{width:380px;height:380px;background:#3B82F6;top:-120px;left:-80px}
-        .glow.b{width:420px;height:420px;background:#1E58C9;bottom:-160px;right:-100px}
         .wrap{position:relative;max-width:1180px;margin:0 auto;z-index:2}
 
+        /* ---------- Social Proof Bar ---------- */
+        .proof-bar{
+          display:flex;align-items:center;justify-content:center;gap:48px;margin-bottom:56px;padding:18px 0;
+          flex-wrap:wrap;
+        }
+        .proof-item{display:flex;align-items:center;gap:12px;font-size:14px;color:var(--mute);font-weight:600}
+        .proof-icon{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;background:var(--tint);border-radius:50%;color:var(--blue);font-weight:800;font-size:12px}
+        .proof-stat{color:var(--ink);font-weight:900;font-size:16px}
+
         /* ---------- Header ---------- */
-        .head{text-align:center;margin-bottom:64px}
+        .head{text-align:center;margin-bottom:56px}
         .badge{
           display:inline-flex;align-items:center;gap:8px;
           padding:8px 16px;border-radius:999px;margin-bottom:22px;
-          background:rgba(255,255,255,0.10);border:1px solid rgba(255,255,255,0.18);
-          backdrop-filter:blur(8px);
-          color:#EAF2FF;font-size:12.5px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;
+          background:var(--tint);border:1px solid var(--blue-light);
+          color:var(--blue);font-size:12.5px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;
         }
-        .badge svg{width:15px;height:15px;color:#9DC4FF}
+        .badge svg{width:15px;height:15px}
         .head h2{
-          color:#fff;font-size:48px;line-height:1.08;font-weight:900;letter-spacing:-1px;
+          color:var(--ink);font-size:48px;line-height:1.08;font-weight:900;letter-spacing:-1px;
           margin:0 auto 18px;max-width:760px;
         }
-        .head h2 .grad{
-          background:linear-gradient(100deg,#7DB4FF 0%,#5199E4 50%,#9DC4FF 100%);
-          -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+        .head h2 .grad{color:var(--blue)}
+        .head p{color:var(--mute);font-size:18px;line-height:1.6;max-width:560px;margin:0 auto;font-weight:400}
+
+        /* ---------- Pricing Badge (Top Right) ---------- */
+        .price-badge{
+          position:absolute;top:84px;right:24px;background:linear-gradient(135deg,var(--blue) 0%,var(--blue-light) 100%);
+          color:#fff;padding:14px 22px;border-radius:12px;font-weight:800;font-size:16px;
+          box-shadow:0 8px 20px rgba(0,71,171,0.25);z-index:10;
         }
-        .head p{color:#BFD2EC;font-size:18px;line-height:1.6;max-width:560px;margin:0 auto;font-weight:400}
+        .price-label{display:block;font-size:11px;opacity:.9;margin-bottom:4px;font-weight:600}
 
         /* ---------- Steps row ---------- */
-        .steps{display:flex;align-items:stretch;justify-content:center;gap:0;padding-top:34px}
+        .steps{display:flex;align-items:stretch;justify-content:center;gap:0;padding-top:24px;position:relative}
         .step{position:relative;flex:1 1 0;max-width:360px;display:flex}
         .bignum{
           position:absolute;top:-58px;left:50%;transform:translateX(-50%);
-          font-size:150px;font-weight:900;line-height:1;color:rgba(255,255,255,0.07);
+          font-size:150px;font-weight:900;line-height:1;color:rgba(0,71,171,0.08);
           z-index:0;pointer-events:none;user-select:none;letter-spacing:-4px;
         }
 
         .card{
           position:relative;z-index:1;width:100%;display:flex;flex-direction:column;
           background:#fff;border-radius:22px;padding:30px 26px 26px;
-          box-shadow:0 28px 56px rgba(2,16,40,0.42),0 4px 14px rgba(2,16,40,0.18);
-          border:1px solid rgba(255,255,255,0.6);
-          transition:transform .35s cubic-bezier(.4,0,.2,1),box-shadow .35s ease;
+          box-shadow:0 12px 28px rgba(0,0,0,0.08);
+          border:1px solid var(--line);
+          transition:all .35s cubic-bezier(.4,0,.2,1);
+          cursor:pointer;
         }
-        .card:hover{transform:translateY(-8px);box-shadow:0 40px 72px rgba(2,16,40,0.52),0 8px 20px rgba(2,16,40,0.22)}
+        .card:hover{transform:translateY(-8px);box-shadow:0 24px 48px rgba(0,0,0,0.14);border-color:var(--blue-light)}
+        .card.expanded{
+          box-shadow:0 40px 80px rgba(0,71,171,0.2);border-color:var(--blue);
+          background:linear-gradient(180deg,#fff 0%,var(--tint) 100%);
+        }
 
         .ico{
           width:54px;height:54px;border-radius:15px;display:flex;align-items:center;justify-content:center;
           background:linear-gradient(135deg,var(--blue) 0%,var(--blue-light) 100%);
           box-shadow:0 12px 24px rgba(0,71,171,0.32);margin-bottom:18px;
+          transition:transform .25s ease;
         }
+        .card:hover .ico{transform:scale(1.08)}
         .ico svg{width:27px;height:27px;color:#fff}
         .slabel{font-size:12px;font-weight:800;letter-spacing:1.4px;text-transform:uppercase;color:var(--blue);margin-bottom:7px}
         .card h3{font-size:21px;font-weight:800;color:var(--ink);margin-bottom:8px;line-height:1.25}
@@ -106,32 +132,31 @@ class BookingDemo extends HTMLElement {
         }
         .tick svg{width:11px;height:11px;color:#fff}
 
-        /* ---------- Mini preview mockups ---------- */
+        /* ---------- Mini preview ---------- */
         .mini{
           margin-top:auto;background:linear-gradient(180deg,#F7FAFD 0%,#EEF5FB 100%);
           border:1px solid var(--line);border-radius:14px;padding:14px;
+          transition:all .25s ease;opacity:0.8;
         }
+        .card:hover .mini{opacity:1;border-color:var(--blue-light)}
         .m-h{font-size:13px;font-weight:800;color:var(--ink);margin-bottom:11px;text-align:center}
-
         .m-zip{display:flex;align-items:stretch;background:#fff;border:1.6px solid var(--blue);border-radius:10px;overflow:hidden}
         .m-pin{display:flex;align-items:center;padding:0 4px 0 10px}
         .m-pin svg{width:15px;height:15px;color:var(--blue)}
         .m-input{flex:1;display:flex;align-items:center;padding:9px 6px;font-size:13px;color:#9AA7B4}
-        .m-go{width:34px;background:var(--blue);display:flex;align-items:center;justify-content:center}
+        .m-go{width:34px;background:var(--blue);display:flex;align-items:center;justify-content:center;cursor:pointer}
         .m-go svg{width:15px;height:15px;color:#fff}
         .m-ok{
           margin-top:9px;display:flex;align-items:center;justify-content:center;gap:6px;
           background:#E2F0FB;border:1px solid var(--blue-light);border-radius:8px;padding:7px;
           font-size:12px;font-weight:700;color:var(--blue-dk)
         }
-        .m-ok svg{width:12px;height:12px;color:var(--blue)}
-
+        .m-ok svg{width:12px;height:12px}
         .m-row{display:flex;align-items:center;justify-content:space-between;background:#fff;border:1.5px solid var(--line);border-radius:9px;padding:9px 11px;margin-bottom:8px;font-size:12.5px;color:var(--slate);font-weight:600}
         .m-row:last-child{margin-bottom:0}
         .m-row.sel{background:var(--tint);border-color:var(--blue)}
         .m-qty{display:inline-flex;align-items:center;gap:8px;color:var(--blue);font-weight:800}
         .m-qty b{display:inline-flex;width:20px;height:20px;border-radius:5px;background:var(--tint);align-items:center;justify-content:center;font-size:13px;border:1px solid var(--line)}
-
         .m-dates{display:flex;gap:7px;margin-bottom:10px}
         .m-d{flex:1;text-align:center;background:#fff;border:1.5px solid var(--line);border-radius:8px;padding:7px 0;font-size:12px;font-weight:700;color:var(--slate)}
         .m-d.sel{background:var(--blue);border-color:var(--blue);color:#fff;box-shadow:0 6px 12px rgba(0,71,171,0.25)}
@@ -139,7 +164,7 @@ class BookingDemo extends HTMLElement {
         .m-t{flex:1;text-align:center;background:#fff;border:1.5px solid var(--line);border-radius:8px;padding:7px 0;font-size:11.5px;font-weight:600;color:var(--mute)}
         .m-t.sel{background:var(--blue);border-color:var(--blue);color:#fff}
 
-        /* ---------- Arrows between steps ---------- */
+        /* ---------- Arrows ---------- */
         .arrow{flex:0 0 auto;align-self:center;display:flex;align-items:center;justify-content:center;padding:0 6px;color:#7DB4FF;z-index:3}
         .arrow svg{width:30px;height:30px;animation:slide 1.6s ease-in-out infinite;filter:drop-shadow(0 2px 6px rgba(125,180,255,0.5))}
         .arrow svg:nth-child(2){animation-delay:.2s;opacity:.55;margin-left:-14px}
@@ -158,15 +183,16 @@ class BookingDemo extends HTMLElement {
         .cta:active{transform:translateY(0)}
         .cta svg{width:19px;height:19px;transition:transform .25s ease}
         .cta:hover svg{transform:translateX(4px)}
-        .cta-sub{margin-top:16px;color:#AEC6E8;font-size:13.5px;font-weight:500}
+        .cta-sub{margin-top:16px;color:var(--mute);font-size:13.5px;font-weight:500}
 
-        /* ---------- Scroll-reveal ---------- */
+        /* ---------- Reveal ---------- */
         .reveal{opacity:0;transform:translateY(26px);transition:opacity .7s ease,transform .7s cubic-bezier(.2,.7,.2,1)}
         .reveal.in{opacity:1;transform:none}
 
         /* ---------- Responsive ---------- */
         @media(max-width:920px){
           .sec{padding:64px 18px 72px}
+          .price-badge{position:static;margin-bottom:24px;text-align:center}
           .head h2{font-size:34px}
           .head p{font-size:16px}
           .steps{flex-direction:column;align-items:center;gap:0;padding-top:48px}
@@ -181,9 +207,23 @@ class BookingDemo extends HTMLElement {
       </style>
 
       <div class="sec">
-        <div class="glow a"></div>
-        <div class="glow b"></div>
+        <div class="price-badge">
+          <span class="price-label">Est. Price</span>
+          <div>$<span id="priceNum">${this.state.estPrice}</span></div>
+        </div>
+
         <div class="wrap">
+
+          <div class="proof-bar reveal">
+            <div class="proof-item">
+              <span class="proof-icon">✓</span>
+              <span><span class="proof-stat" id="bookingCount">${this.state.bookingsCount}</span> bookings completed</span>
+            </div>
+            <div class="proof-item">
+              <span class="proof-icon">⚡</span>
+              <span><span class="proof-stat" id="completion">${this.state.completionRate}%</span> in under 2 min</span>
+            </div>
+          </div>
 
           <div class="head reveal">
             <span class="badge">
@@ -199,7 +239,7 @@ class BookingDemo extends HTMLElement {
             <!-- STEP 1 -->
             <div class="step reveal">
               <div class="bignum">1</div>
-              <div class="card">
+              <div class="card" data-step="1">
                 <div class="ico">
                   <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>
                 </div>
@@ -230,7 +270,7 @@ class BookingDemo extends HTMLElement {
             <!-- STEP 2 -->
             <div class="step reveal">
               <div class="bignum">2</div>
-              <div class="card">
+              <div class="card" data-step="2">
                 <div class="ico">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12l2 2 4-4"/></svg>
                 </div>
@@ -239,12 +279,12 @@ class BookingDemo extends HTMLElement {
                 <p>Tell us about your TV and wall — pricing updates as you go.</p>
                 <ul class="benefits">
                   <li><span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>Takes less than 2 minutes</li>
-                  <li><span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>Instant, upfront pricing</li>
+                  <li><span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>Live pricing updates</li>
                 </ul>
                 <div class="mini">
                   <div class="m-h">What size is your TV?</div>
-                  <div class="m-row"><span>33"&ndash;59"</span><span class="m-qty">&minus; <b>0</b> +</span></div>
-                  <div class="m-row sel"><span>60"&ndash;69"</span><span class="m-qty">&minus; <b>1</b> +</span></div>
+                  <div class="m-row"><span>33"–59"</span><span class="m-qty">− <b>0</b> +</span></div>
+                  <div class="m-row sel"><span>60"–69"</span><span class="m-qty">− <b>1</b> +</span></div>
                 </div>
               </div>
             </div>
@@ -257,7 +297,7 @@ class BookingDemo extends HTMLElement {
             <!-- STEP 3 -->
             <div class="step reveal">
               <div class="bignum">3</div>
-              <div class="card">
+              <div class="card" data-step="3">
                 <div class="ico">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="m9 16 2 2 4-4"/></svg>
                 </div>
@@ -271,7 +311,7 @@ class BookingDemo extends HTMLElement {
                 <div class="mini">
                   <div class="m-h">Pick a date &amp; time</div>
                   <div class="m-dates"><span class="m-d">Fri</span><span class="m-d sel">Sat</span><span class="m-d">Mon</span></div>
-                  <div class="m-times"><span class="m-t sel">8&ndash;10 AM</span><span class="m-t">11&ndash;1 PM</span></div>
+                  <div class="m-times"><span class="m-t sel">8–10 AM</span><span class="m-t">11–1 PM</span></div>
                 </div>
               </div>
             </div>
@@ -303,9 +343,48 @@ class BookingDemo extends HTMLElement {
       io.observe(el);
     });
 
-    // "Book Now" -> smooth-scroll to the real booking widget if present on the page
+    // Interactive card previews
+    this.shadowRoot.querySelectorAll('.card').forEach((card) => {
+      card.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const step = card.dataset.step;
+        const wasExpanded = this.state.expandedStep === step;
+        this.state.expandedStep = wasExpanded ? null : step;
+        this.updateCardStates();
+      });
+    });
+
+    // Pricing interaction (Step 2)
+    this.shadowRoot.querySelectorAll('.m-qty').forEach((qty) => {
+      const inc = qty.querySelector('+ span') || qty.nextElementSibling;
+      if (inc && inc.textContent.includes('+')) {
+        qty.addEventListener('click', () => {
+          this.state.selectedTV = Math.min(this.state.selectedTV + 1, 5);
+          this.calculatePrice();
+          this.updatePrice();
+          this.updateCardStates();
+        });
+      }
+    });
+
+    // "Book Now" CTA
     const cta = this.shadowRoot.getElementById('ctaBtn');
     cta && cta.addEventListener('click', () => this.book());
+  }
+
+  updateCardStates() {
+    this.shadowRoot.querySelectorAll('.card').forEach((card) => {
+      if (card.dataset.step === String(this.state.expandedStep)) {
+        card.classList.add('expanded');
+      } else {
+        card.classList.remove('expanded');
+      }
+    });
+  }
+
+  updatePrice() {
+    const priceEl = this.shadowRoot.getElementById('priceNum');
+    if (priceEl) priceEl.textContent = this.state.estPrice;
   }
 
   book() {
@@ -319,7 +398,6 @@ class BookingDemo extends HTMLElement {
     if (target) {
       target.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } else {
-      // No widget on this page — let the host page decide what to do.
       this.dispatchEvent(new CustomEvent('booking-demo:book', { bubbles: true, composed: true }));
     }
   }
