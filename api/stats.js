@@ -10,7 +10,7 @@ export default async function handler(req, res) {
   const SEED = 3847;
   // Real Zenbooker job total captured the moment this counter went live.
   // Filled in after the first live read so the number starts exactly at SEED.
-  const BASELINE_TOTAL = 0;
+  const BASELINE_TOTAL = 216;
 
   // Cache hard at the CDN: recount at most once an hour, serve stale meanwhile.
   res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400');
@@ -55,9 +55,8 @@ export default async function handler(req, res) {
 
     const count = SEED + Math.max(0, total - BASELINE_TOTAL);
 
-    // liveTotal / pages / stopped are diagnostics for calibrating BASELINE_TOTAL.
-    // They expose only counts, never customer data.
-    return res.status(200).json({ count, liveTotal: total, pages, stopped });
+    // liveTotal exposes only a count (never customer data); kept for verification.
+    return res.status(200).json({ count, liveTotal: total });
   } catch (e) {
     return res.status(200).json({ count: SEED });
   }

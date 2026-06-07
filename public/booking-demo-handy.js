@@ -22,6 +22,7 @@ class BookingDemoHandy extends HTMLElement {
     this.calculatePrice();
     this.render();
     this.init();
+    this.fetchLiveCount();
   }
 
   calculatePrice() {
@@ -353,6 +354,20 @@ class BookingDemoHandy extends HTMLElement {
   updatePrice() {
     const priceEl = this.shadowRoot.getElementById('priceNum');
     if (priceEl) priceEl.textContent = this.state.estPrice;
+  }
+
+  fetchLiveCount() {
+    try {
+      fetch('https://doms-tv-mounting.vercel.app/api/stats', { cache: 'no-store' })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => {
+          if (d && typeof d.count === 'number' && d.count > 0) {
+            const el = this.shadowRoot.getElementById('bookingCount');
+            if (el) el.textContent = String(d.count);
+          }
+        })
+        .catch(() => {});
+    } catch (e) { /* keep static seed */ }
   }
 
   book() {
