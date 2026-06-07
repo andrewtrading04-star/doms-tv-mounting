@@ -13,6 +13,7 @@ export default async function handler(req, res) {
   const {
     kind, territory_id, service_id, selectedSlot,
     customer, city, state, postal_code, zbk_selections, tip, payment_method_id,
+    subtotal, preferredSlots, describe,
   } = req.body || {};
 
   if (!territory_id)      return res.status(400).json({ error: 'territory_id required' });
@@ -20,8 +21,8 @@ export default async function handler(req, res) {
   if (!customer?.email)   return res.status(400).json({ error: 'customer.email required' });
   if (!customer?.phone)   return res.status(400).json({ error: 'customer.phone required' });
   if (!customer?.address) return res.status(400).json({ error: 'customer.address required' });
-  if (kind === 'booking' && !selectedSlot) {
-    return res.status(400).json({ error: 'selectedSlot required for a booking' });
+  if (!selectedSlot) {
+    return res.status(400).json({ error: 'A time slot is required' });
   }
 
   const fullName = `${customer.first_name || ''} ${customer.last_name || ''}`.trim();
@@ -31,21 +32,12 @@ export default async function handler(req, res) {
     services.push({ custom_service: { name: 'Tip for technician', price: Number(tip), duration: 0, taxable: false } });
   }
 
-  // Calculate subtotal from service selections and add tax as a line item
+  // Add tax (8.25%) as a line item, based on the subtotal the customer saw in the widget.
   const TAX_RATE = 0.0825;
-  let subtotal = 0;
-  for (const sel of (zbk_selections || [])) {
-    const selOpts = sel.selected_options || [];
-    for (const opt of selOpts) {
-      subtotal += (opt.price || 0) * (opt.quantity || 1);
-    }
-    if (sel.option_id && !sel.selected_options) {
-      subtotal += (sel.price || 0);
-    }
-  }
-  const taxAmount = Math.round(subtotal * TAX_RATE * 100) / 100;
+  const taxBase = Number(subtotal) || 0;
+  const taxAmount = Math.round(taxBase * TAX_RATE * 100) / 100;
   if (taxAmount > 0) {
-    services.push({ custom_service: { name: `Tax (8.25%)`, price: taxAmount, duration: 0, taxable: false } });
+    services.push({ custom_service: { name: 'Tax (8.25%)', price: taxAmount, duration: 0, taxable: false } });
   }
 
   const payload = {
@@ -61,7 +53,7 @@ export default async function handler(req, res) {
     },
     email_notifications: false,
     sms_notifications:   false,
-    ...(kind === 'booking' && selectedSlot && { timeslot_id: selectedSlot }),
+    ...(selectedSlot && { timeslot_id: selectedSlot }),
   };
 
   try {
@@ -119,6 +111,7 @@ export default async function handler(req, res) {
           if (!ar.ok) throw new Error(pm?.error?.message || 'Attach failed');
 
           const db = new URLSearchParams(); db.set('invoice_settings[default_payment_method]', payment_method_id);
+          await fetch(`https://api.stripe.com/v1/customers/${stripeCustomerId}`, { method: 'POST', headers: sAuth, body: db });
 
           // 4) Link the Zenbooker customer to this Stripe customer so Zenbooker displays the card in the Payment Methods section.
           try {
@@ -132,13 +125,13 @@ export default async function handler(req, res) {
             }
             if (zbkCustToUpdate) {
               await fetch(`https://api.zenbooker.com/v1/customers/${zbkCustToUpdate}`, {
-                method: "PATCH",
-                headers: { Authorization: `Bearer ${ZBK_KEY}`, "Content-Type": "application/json" },
+                method: 'PATCH',
+                headers: { Authorization: `Bearer ${ZBK_KEY}`, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ stripe_customer_id: stripeCustomerId }),
               });
             }
           } catch (updateErr) {
-            console.warn("[book] Failed to link Zenbooker customer to Stripe:", updateErr.message);
+            console.warn('[book] Failed to link Zenbooker customer to Stripe:', updateErr.message);
           }
 
           const brand = pm?.card?.brand || 'card';
@@ -161,6 +154,26 @@ export default async function handler(req, res) {
         });
       } catch (noteErr) {
         console.warn('[book] Failed to add note:', noteErr.message);
+      }
+    }
+
+    // For quote requests, record the customer's description and ALL preferred times as a note,
+    // so the team can confirm or reschedule to the best option.
+    if (jobId && (describe || (Array.isArray(preferredSlots) && preferredSlots.length))) {
+      const parts = [];
+      if (describe) parts.push(`Customer description:\n${describe}`);
+      if (Array.isArray(preferredSlots) && preferredSlots.length) {
+        parts.push('Preferred times (customer is available for any of these):\n' + preferredSlots.map((s, i) => `${i + 1}. ${s}`).join('\n'));
+        if (preferredSlots.length > 1) parts.push('Booked into the earliest preferred time — please confirm or reschedule to the best option.');
+      }
+      try {
+        await fetch(`https://api.zenbooker.com/v1/jobs/${jobId}/notes`, {
+          method:  'POST',
+          headers: { Authorization: `Bearer ${ZBK_KEY}`, 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ text: parts.join('\n\n') }),
+        });
+      } catch (noteErr) {
+        console.warn('[book] Failed to add quote note:', noteErr.message);
       }
     }
 
