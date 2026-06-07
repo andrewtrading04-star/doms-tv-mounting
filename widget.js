@@ -28,11 +28,15 @@ sections:[
 {stepKey:'terms',id:'1764782372085x850770250964140000',title:'Terms of Service',subtitle:"Our technician will help determine the best TV mounting height during installation, but ultimately it's up to you. If you need adjustments after the technician leaves, there'll be an extra charge. You can reschedule anytime unless within 24 hours of your appointment. Cancellations within 24 hours incur a $50 fee.",type:'terms',required:true,options:[{id:'1764782372085x351986086320275460',label:'I agree to the Terms of Service',price:0}]}
 ]
 };
-const FLOWS={tv:['frame_tv','size','bracket','fireplace','surface','wires','lifting','dismount','extras','terms','slots','customer']}
+const FLOWS={tv:['frame_tv','size','bracket','fireplace','surface','wires','lifting','dismount','extras','terms','slots','customer']};
+let zipVerified=false,serviceConfig=TV,stepIdx=0,isFrameTV=false;
+let selections={},selectedSlot=null,selectedSlots=[];
+let slotsByDate={},selectedDate=null,calYear=null,calMonth=null;
+let describeText='',customer={first_name:'',last_name:'',email:'',phone:'',address:'',zip:''};
 let tipAmount=0,optionComments={};
 let _stripe=null,_stripeElements=null,_stripeCard=null;
 const BLUE='#0047AB',BLUE_DK='#003580',TINT='#EEF5FB',INK='#334455',MUTE='#777777',LINE='#D6DEE7',BLUE_LIGHT='#5199E4';
-function flowSteps(){let steps=['zip_verify'];if(zipVerified)steps.push(...(FLOWS[selectedService]||[]));return steps;}
+function flowSteps(){let steps=['zip_verify'];if(zipVerified)steps.push(...(FLOWS['tv']||[]));return steps;}
 function getSec(k){return serviceConfig?.sections.find(s=>s.stepKey===k);}
 function getQty(sid,oid){return(selections[sid]||[]).find(x=>x.option_id===oid)?.quantity||0;}
 function setQty(sid,oid,q){if(!selections[sid])selections[sid]=[];const i=selections[sid].findIndex(x=>x.option_id===oid);if(q<=0){if(i!==-1)selections[sid].splice(i,1);}else if(i!==-1)selections[sid][i].quantity=q;else selections[sid].push({option_id:oid,quantity:q});}
