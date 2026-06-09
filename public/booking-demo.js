@@ -76,6 +76,7 @@ class BookingDemo extends HTMLElement {
           --tint:#EEF5FB; --ink:#1B2733; --slate:#334455; --mute:#6B7785; --line:#E3E8EF;
           display:block; width:100%;
           font-family:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+          -webkit-tap-highlight-color:transparent;
         }
 
         /* ---------- Transparent section ---------- */
@@ -204,6 +205,9 @@ class BookingDemo extends HTMLElement {
           display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;
           border-radius:5px;transition:background .15s;color:var(--blue)}
         .m-qty .m-dec:hover,.m-qty .m-inc:hover{background:rgba(0,71,171,0.14)}
+        /* No blue tap/selection flash when pressing controls (keep ZIP input selectable) */
+        .card,.cta,.m-go,.m-d,.m-t,.m-row,.m-qty{-webkit-user-select:none;-moz-user-select:none;user-select:none}
+        input.m-input{-webkit-user-select:text;user-select:text}
 
         /* ---------- Arrows ---------- */
         .arrow{flex:0 0 auto;align-self:center;display:flex;align-items:center;justify-content:center;padding:0 6px;color:#7DB4FF;z-index:3}
