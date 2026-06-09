@@ -27,7 +27,7 @@ export default async function handler(req, res) {
     }
 
     const fiveStarReviews = (data.result.reviews || [])
-      .filter(r => r.rating === 5)
+      .filter(r => r.rating === 5 && r.text && r.text.trim().length > 0)
       .sort((a, b) => b.time - a.time)
       .slice(0, 12)
       .map(r => ({
