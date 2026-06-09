@@ -1,44 +1,3 @@
-// Google Business Profile API — fetches reviews for Doms TV Mounting Colorado
-// Requires one-time OAuth setup. See api/auth/start.js to authenticate.
-
-async function getAccessToken() {
-  const res = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      client_id:     process.env.GOOGLE_CLIENT_ID,
-      client_secret: process.env.GOOGLE_CLIENT_SECRET,
-      refresh_token: process.env.GBP_REFRESH_TOKEN,
-      grant_type:    'refresh_token',
-    }),
-  });
-  const data = await res.json();
-  if (!data.access_token) throw new Error('Failed to get access token: ' + JSON.stringify(data));
-  return data.access_token;
-}
-
-async function gbpFetch(path, accessToken) {
-  const res = await fetch(`https://businessprofiles.googleapis.com/v1/${path}`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  const text = await res.text();
-  try {
-    return JSON.parse(text);
-  } catch (e) {
-    console.error('gbpFetch parse error:', text.substring(0, 500));
-    throw e;
-  }
-}
-
-function relativeTime(isoString) {
-  const diffDays = Math.floor((Date.now() - new Date(isoString)) / 86400000);
-  if (diffDays === 0) return 'Today';
-  if (diffDays === 1) return '1 day ago';
-  if (diffDays < 30) return `${diffDays} days ago`;
-  if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`;
-  return `${Math.floor(diffDays / 365)} years ago`;
-}
-
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -46,57 +5,59 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
-  const required = ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GBP_REFRESH_TOKEN'];
-  for (const key of required) {
-    if (!process.env[key]) {
-      return res.status(500).json({ error: `${key} environment variable not set` });
-    }
-  }
+  const API_KEY = process.env.GOOGLE_PLACES_API_KEY;
+  if (!API_KEY) return res.status(500).json({ error: 'API not configured' });
 
   try {
-    const accessToken = await getAccessToken();
+    // Find the business by phone number
+    const searchUrl = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=%2B17208006095&inputtype=phonenumber&fields=place_id,name,rating,user_ratings_total&key=${API_KEY}`;
+    const searchRes = await fetch(searchUrl);
+    const searchData = await searchRes.json();
 
-    // Use the known Business Profile ID directly
-    const accountId = '234320491567939943';
-
-    // List locations under account
-    const locData = await gbpFetch(`accounts/${accountId}/locations?pageSize=100`, accessToken);
-    const locations = locData.locations || [];
-
-    if (!locations.length) {
-      return res.status(404).json({ error: 'No locations found under this account' });
+    if (searchData.status !== 'OK' || !searchData.candidates?.length) {
+      return res.status(404).json({ error: 'Business not found' });
     }
 
-    // Prefer the service area business (no fixed address) — that's the Denver one
-    const location = locations.find(l => !l.address?.addressLines?.length) || locations[0];
-    const locationName = location.name; // e.g. "accounts/.../locations/..."
+    // Find Doms TV Mounting Colorado (Denver) — it will have more reviews than Fort Collins
+    let location = searchData.candidates[0];
+    if (searchData.candidates.length > 1) {
+      location = searchData.candidates.reduce((prev, curr) =>
+        (curr.user_ratings_total || 0) > (prev.user_ratings_total || 0) ? curr : prev
+      );
+    }
 
-    // Fetch reviews — newest first
-    const reviewsData = await gbpFetch(
-      `${locationName}/reviews?pageSize=50&orderBy=updateTime+desc`,
-      accessToken,
-    );
+    const PLACE_ID = location.place_id;
 
-    const fiveStarReviews = (reviewsData.reviews || [])
-      .filter(r => r.starRating === 'FIVE' && r.comment?.trim().length > 0)
+    // Fetch full details with reviews
+    const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${PLACE_ID}&fields=reviews,name,rating,user_ratings_total&reviews_sort=newest&key=${API_KEY}`;
+    const detailsRes = await fetch(detailsUrl);
+    const detailsData = await detailsRes.json();
+
+    if (detailsData.status !== 'OK') {
+      return res.status(400).json({ error: detailsData.error_message || 'Failed to fetch details' });
+    }
+
+    // Filter for 5-star reviews with text, newest first
+    const fiveStarReviews = (detailsData.result.reviews || [])
+      .filter(r => r.rating === 5 && r.text && r.text.trim().length > 0)
       .slice(0, 12)
       .map(r => ({
-        author:          r.reviewer?.displayName || 'Google User',
+        author:          r.author_name,
         rating:          5,
-        text:            r.comment,
-        time:            new Date(r.updateTime).getTime(),
-        relativeTime:    relativeTime(r.updateTime),
-        profilePhotoUrl: r.reviewer?.profilePhotoUrl || null,
+        text:            r.text,
+        time:            r.time * 1000,
+        relativeTime:    r.relative_time_description,
+        profilePhotoUrl: r.profile_photo_url || null,
       }));
 
     return res.status(200).json({
-      name:          location.locationName || 'Doms TV Mounting Colorado',
-      overallRating: 5.0,
-      totalReviews:  location.metadata?.totalReviewCount || fiveStarReviews.length,
+      name:          detailsData.result.name,
+      overallRating: detailsData.result.rating,
+      totalReviews:  detailsData.result.user_ratings_total,
       fiveStarReviews,
     });
   } catch (err) {
-    console.error('GBP reviews error:', err);
+    console.error('Reviews API error:', err);
     return res.status(500).json({ error: err.message });
   }
 }
