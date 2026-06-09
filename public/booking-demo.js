@@ -26,6 +26,31 @@ class BookingDemo extends HTMLElement {
     this.render();
     this.init();
     this.fetchLiveCount();
+    // The widget is transparent; the colored band around it is the host
+    // page's wrapper section. Collapse its oversized vertical padding so
+    // there's no dead space above/below the widget. Runs now + retries in
+    // case the page builder applies its styles after we mount.
+    this.trimHost();
+    setTimeout(() => this.trimHost(), 350);
+    setTimeout(() => this.trimHost(), 1200);
+    window.addEventListener('load', () => this.trimHost());
+  }
+
+  trimHost() {
+    try {
+      let node = this.parentElement;
+      let hops = 0;
+      // Walk up a few ancestors and cap any section-sized vertical padding.
+      while (node && node !== document.body && hops < 4) {
+        const cs = getComputedStyle(node);
+        const pt = parseFloat(cs.paddingTop) || 0;
+        const pb = parseFloat(cs.paddingBottom) || 0;
+        if (pt > 28) node.style.paddingTop = '16px';
+        if (pb > 28) node.style.paddingBottom = '16px';
+        node = node.parentElement;
+        hops++;
+      }
+    } catch (e) { /* never let layout-trim break the widget */ }
   }
 
   calculatePrice() {
@@ -51,7 +76,7 @@ class BookingDemo extends HTMLElement {
         /* ---------- Transparent section ---------- */
         .sec{
           position:relative; width:100%;
-          padding:40px 24px 92px;
+          padding:10px 24px 22px;
           background:transparent;
         }
         .wrap{position:relative;max-width:1180px;margin:0 auto;z-index:2}
@@ -66,7 +91,7 @@ class BookingDemo extends HTMLElement {
         .proof-stat{color:#fff;font-weight:900;font-size:44px}
 
         /* ---------- Header ---------- */
-        .head{text-align:center;margin-bottom:56px}
+        .head{text-align:center;margin-bottom:50px}
         .badge{
           display:inline-flex;align-items:center;gap:8px;
           padding:8px 16px;border-radius:999px;margin-bottom:22px;
@@ -164,7 +189,7 @@ class BookingDemo extends HTMLElement {
         @keyframes slide{0%,100%{transform:translateX(-3px)}50%{transform:translateX(4px)}}
 
         /* ---------- CTA ---------- */
-        .cta-wrap{text-align:center;margin-top:62px}
+        .cta-wrap{text-align:center;margin-top:56px}
         .cta{
           display:inline-flex;align-items:center;gap:10px;cursor:pointer;border:none;
           padding:17px 38px;border-radius:14px;font-family:inherit;font-size:17px;font-weight:800;color:#fff;
@@ -184,7 +209,7 @@ class BookingDemo extends HTMLElement {
 
         /* ---------- Responsive ---------- */
         @media(max-width:920px){
-          .sec{padding:28px 18px 72px}
+          .sec{padding:8px 18px 18px}
           .price-badge{position:static;margin-bottom:24px;text-align:center}
           .head h2{font-size:34px}
           .head p{font-size:16px}
