@@ -18,10 +18,16 @@ async function getAccessToken() {
 }
 
 async function gbpFetch(path, accessToken) {
-  const res = await fetch(`https://mybusiness.googleapis.com/v4/${path}`, {
+  const res = await fetch(`https://businessprofiles.googleapis.com/v1/${path}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
-  return res.json();
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    console.error('gbpFetch parse error:', text.substring(0, 500));
+    throw e;
+  }
 }
 
 function relativeTime(isoString) {
