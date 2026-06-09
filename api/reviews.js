@@ -5,11 +5,14 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
-  const API_KEY  = process.env.GOOGLE_PLACES_API_KEY;
-  const PLACE_ID = process.env.GOOGLE_PLACE_ID;
+  const API_KEY = process.env.GOOGLE_PLACES_API_KEY;
+  // Place ID is public (it's in the Maps URL), so hardcode the correct one.
+  // Verified via Google Places API for "Doms TV Mounting Colorado".
+  // NOT read from env on purpose — the Vercel GOOGLE_PLACE_ID var holds a stale/wrong value.
+  const PLACE_ID = 'ChIJkRoSYfRKaYcR7awWLC--OWI';
 
-  if (!API_KEY || !PLACE_ID) {
-    console.error('Missing GOOGLE_PLACES_API_KEY or GOOGLE_PLACE_ID');
+  if (!API_KEY) {
+    console.error('Missing GOOGLE_PLACES_API_KEY');
     return res.status(500).json({ error: 'API not configured' });
   }
 
