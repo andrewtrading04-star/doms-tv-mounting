@@ -248,6 +248,13 @@ class BookingDemo extends HTMLElement {
           .arrow svg:nth-child(2){margin-left:0;margin-top:-14px}
           @keyframes slidev{0%,100%{transform:rotate(90deg) translateX(-3px)}50%{transform:rotate(90deg) translateX(4px)}}
         }
+        /* Mobile: stack the social-proof counter — number on its own line above the words, centered */
+        @media(max-width:600px){
+          .proof-bar{margin-bottom:32px}
+          .proof-item{flex-direction:column;gap:8px;text-align:center}
+          .proof-item > span{display:flex;flex-direction:column;align-items:center;gap:2px;line-height:1.15}
+          .proof-stat{font-size:42px}
+        }
         @media(max-width:420px){ .head h2{font-size:28px} }
       </style>
 
