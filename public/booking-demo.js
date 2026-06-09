@@ -7,6 +7,11 @@
  * Optional attribute:
  *   booking-target="#doms-widget"   // element to smooth-scroll to on "Book Now"
  */
+
+// Real Denver-metro service area — kept in sync with the production widget.js
+// so the demo's ZIP check gives genuine "we service your area" answers.
+const DEMO_DENVER_ZIPS = new Set(['80001','80002','80003','80004','80005','80006','80007','80010','80011','80012','80013','80014','80015','80016','80017','80018','80019','80020','80021','80022','80023','80024','80025','80026','80027','80030','80031','80033','80034','80035','80036','80037','80038','80040','80041','80042','80044','80045','80046','80047','80101','80102','80103','80104','80105','80106','80107','80108','80109','80110','80111','80112','80113','80116','80117','80118','80120','80121','80122','80123','80124','80125','80126','80127','80128','80129','80130','80134','80135','80136','80137','80138','80150','80151','80155','80160','80161','80162','80163','80165','80166','80201','80202','80203','80204','80205','80206','80207','80208','80209','80210','80211','80212','80214','80215','80216','80217','80218','80219','80220','80221','80222','80223','80224','80225','80226','80227','80228','80229','80230','80231','80232','80233','80234','80235','80236','80237','80238','80239','80240','80241','80242','80243','80244','80246','80247','80248','80249','80250','80251','80252','80256','80257','80259','80260','80261','80262','80263','80264','80265','80266','80270','80271','80273','80274','80275','80279','80280','80281','80282','80290','80291','80293','80294','80295','80299','80301','80302','80303','80304','80305','80310','80314','80401','80402','80403','80419','80465','80516','80601','80602','80603','80614','80640','80642','80643','80654']);
+
 class BookingDemo extends HTMLElement {
   constructor() {
     super();
@@ -182,6 +187,24 @@ class BookingDemo extends HTMLElement {
         .m-t{flex:1;text-align:center;background:#fff;border:1.5px solid var(--line);border-radius:8px;padding:7px 0;font-size:11.5px;font-weight:600;color:var(--mute)}
         .m-t.sel{background:var(--blue);border-color:var(--blue);color:#fff}
 
+        /* ---------- Interactive play (mini previews are clickable toys) ---------- */
+        input.m-input{flex:1;min-width:0;display:block;border:none;outline:none;background:transparent;
+          padding:9px 6px;font-size:13px;color:var(--ink);font-family:inherit}
+        input.m-input::placeholder{color:#9AA7B4}
+        .m-go{cursor:pointer;transition:background .15s}
+        .m-go:hover{background:var(--blue-dk)}
+        .m-no{margin-top:9px;display:flex;align-items:center;justify-content:center;gap:6px;
+          background:#FDECEC;border:1px solid #E69A9A;border-radius:8px;padding:7px;
+          font-size:12px;font-weight:700;color:#B23B3B}
+        .m-no svg{width:12px;height:12px}
+        .m-d,.m-t,.m-row{cursor:pointer;transition:border-color .15s,background .15s}
+        .m-d:hover,.m-t:hover{border-color:var(--blue-light)}
+        .m-row:hover{border-color:var(--blue-light)}
+        .m-qty .m-dec,.m-qty .m-inc{cursor:pointer;user-select:none;font-style:normal;
+          display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;
+          border-radius:5px;transition:background .15s;color:var(--blue)}
+        .m-qty .m-dec:hover,.m-qty .m-inc:hover{background:rgba(0,71,171,0.14)}
+
         /* ---------- Arrows ---------- */
         .arrow{flex:0 0 auto;align-self:center;display:flex;align-items:center;justify-content:center;padding:0 6px;color:#7DB4FF;z-index:3}
         .arrow svg{width:30px;height:30px;animation:slide 1.6s ease-in-out infinite;filter:drop-shadow(0 2px 6px rgba(125,180,255,0.5))}
@@ -264,10 +287,10 @@ class BookingDemo extends HTMLElement {
                   <div class="m-h">Do we service your area?</div>
                   <div class="m-zip">
                     <span class="m-pin"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg></span>
-                    <span class="m-input">ZIP Code</span>
-                    <span class="m-go"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
+                    <input class="m-input" type="text" inputmode="numeric" maxlength="5" placeholder="Enter your ZIP Code" />
+                    <span class="m-go" title="Start booking"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></span>
                   </div>
-                  <div class="m-ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>We service your area!</div>
+                  <div class="m-msg"></div>
                 </div>
               </div>
             </div>
@@ -293,8 +316,8 @@ class BookingDemo extends HTMLElement {
                 </ul>
                 <div class="mini">
                   <div class="m-h">What size is your TV?</div>
-                  <div class="m-row"><span>33"–59"</span><span class="m-qty">− <b>0</b> +</span></div>
-                  <div class="m-row sel"><span>60"–69"</span><span class="m-qty">− <b>1</b> +</span></div>
+                  <div class="m-row"><span>33"–59"</span><span class="m-qty"><span class="m-dec">−</span><b>0</b><span class="m-inc">+</span></span></div>
+                  <div class="m-row sel"><span>60"–69"</span><span class="m-qty"><span class="m-dec">−</span><b>1</b><span class="m-inc">+</span></span></div>
                 </div>
               </div>
             </div>
@@ -367,6 +390,67 @@ class BookingDemo extends HTMLElement {
     // "Book Now" CTA
     const cta = this.shadowRoot.getElementById('ctaBtn');
     cta && cta.addEventListener('click', () => this.book());
+
+    // Make the mini-previews interactive playgrounds
+    this.initMiniPlay();
+  }
+
+  initMiniPlay() {
+    const root = this.shadowRoot;
+    const stop = (e) => e.stopPropagation();
+
+    // Each mini is an isolated play zone — clicking inside it should never
+    // toggle the card's expand/collapse state.
+    root.querySelectorAll('.mini').forEach((m) => m.addEventListener('click', stop));
+
+    // ---- Step 1: real ZIP check + arrow -> /book ----
+    const zip = root.querySelector('.m-input');
+    const msg = root.querySelector('.m-msg');
+    const zipBox = root.querySelector('.m-zip');
+    const OK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+    const X = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+    if (zip) {
+      zip.addEventListener('click', stop);
+      zip.addEventListener('input', (e) => {
+        e.stopPropagation();
+        const digits = e.target.value.replace(/\D/g, '').slice(0, 5);
+        e.target.value = digits;
+        const valid = /^\d{5}$/.test(digits);
+        const inArea = valid && DEMO_DENVER_ZIPS.has(digits);
+        const notInArea = valid && !inArea;
+        if (zipBox) zipBox.style.borderColor = notInArea ? '#E07A7A' : 'var(--blue)';
+        if (!msg) return;
+        if (inArea) msg.innerHTML = '<div class="m-ok">' + OK + 'We service your area!</div>';
+        else if (notInArea) msg.innerHTML = '<div class="m-no">' + X + 'Outside our Denver service area</div>';
+        else msg.innerHTML = '';
+      });
+    }
+    // The blue arrow is the one element that DOES navigate — into the real flow.
+    const go = root.querySelector('.m-go');
+    if (go) go.addEventListener('click', (e) => { e.stopPropagation(); this.book(); });
+
+    // ---- Step 2: quantity steppers (+/-) highlight their row ----
+    root.querySelectorAll('.m-row').forEach((row) => {
+      const num = row.querySelector('b');
+      const dec = row.querySelector('.m-dec');
+      const inc = row.querySelector('.m-inc');
+      if (!num) return;
+      const sync = () => row.classList.toggle('sel', (parseInt(num.textContent, 10) || 0) > 0);
+      inc && inc.addEventListener('click', (e) => { e.stopPropagation(); num.textContent = String((parseInt(num.textContent, 10) || 0) + 1); sync(); });
+      dec && dec.addEventListener('click', (e) => { e.stopPropagation(); num.textContent = String(Math.max(0, (parseInt(num.textContent, 10) || 0) - 1)); sync(); });
+    });
+
+    // ---- Step 3: date + time chips (single-select per group) ----
+    const single = (sel) => {
+      const chips = root.querySelectorAll(sel);
+      chips.forEach((chip) => chip.addEventListener('click', (e) => {
+        e.stopPropagation();
+        chips.forEach((c) => c.classList.remove('sel'));
+        chip.classList.add('sel');
+      }));
+    };
+    single('.m-d');
+    single('.m-t');
   }
 
   updateCardStates() {
