@@ -56,16 +56,11 @@ export default async function handler(req, res) {
   try {
     const accessToken = await getAccessToken();
 
-    // List accounts (finds Doms TV Mounting Colorado account)
-    const accountsData = await gbpFetch('accounts', accessToken);
-    if (!accountsData.accounts?.length) {
-      return res.status(404).json({ error: 'No GBP accounts found for this Google account' });
-    }
-
-    const accountName = accountsData.accounts[0].name; // e.g. "accounts/234320491567939943"
+    // Use the known Business Profile ID directly
+    const accountId = '234320491567939943';
 
     // List locations under account
-    const locData = await gbpFetch(`${accountName}/locations?pageSize=100`, accessToken);
+    const locData = await gbpFetch(`accounts/${accountId}/locations?pageSize=100`, accessToken);
     const locations = locData.locations || [];
 
     if (!locations.length) {
