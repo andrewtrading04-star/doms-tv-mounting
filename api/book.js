@@ -81,6 +81,7 @@ export default async function handler(req, res) {
     },
     email_notifications: true,
     sms_notifications:   true,
+    tax_exempt:          false,
     ...(selectedSlot && { timeslot_id: selectedSlot }),
   };
 
