@@ -63,6 +63,11 @@ export default async function handler(req, res) {
     services.push({ custom_service: { name: `Coupon ${couponCode} (-$${couponDiscount})`, price: -couponDiscount, duration: 0, taxable: false } });
   }
 
+  // Forward the technician tip to the job so it's billed (mirrors handy-andy-booking).
+  if (tip && Number(tip) > 0) {
+    services.push({ custom_service: { name: 'Tip for technician', price: Number(tip), duration: 0, taxable: false } });
+  }
+
   const payload = {
     territory_id,
     services,
