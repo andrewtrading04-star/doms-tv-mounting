@@ -1,3 +1,8 @@
+// Valid coupon codes → discount in dollars (owner-provided, June 2026).
+// Zenbooker has no native coupon support, so a valid code is applied to the
+// job as a negative-price custom service line item.
+const COUPONS = { BOOKONLINE: 10 };
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin',  '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -13,7 +18,7 @@ export default async function handler(req, res) {
   const {
     kind, territory_id, service_id, selectedSlot,
     customer, city, state, postal_code, zbk_selections, tip, payment_method_id,
-    subtotal, preferredSlots, describe,
+    subtotal, preferredSlots, describe, coupon,
   } = req.body || {};
 
   if (!territory_id)      return res.status(400).json({ error: 'territory_id required' });
@@ -47,6 +52,16 @@ export default async function handler(req, res) {
   }
   const selections = _order.map((sid) => ({ section_id: sid, selected_options: _grouped[sid] }));
   const services = [{ service_id, selections }];
+
+  // Validate coupon — unknown codes get a clear error instead of being silently ignored.
+  const couponCode = String(coupon || '').trim().toUpperCase();
+  if (couponCode) {
+    const couponDiscount = COUPONS[couponCode];
+    if (!couponDiscount) {
+      return res.status(400).json({ error: `Invalid coupon code "${couponCode}". Please check the code or clear the field.` });
+    }
+    services.push({ custom_service: { name: `Coupon ${couponCode} (-$${couponDiscount})`, price: -couponDiscount, duration: 0, taxable: false } });
+  }
 
   const payload = {
     territory_id,
