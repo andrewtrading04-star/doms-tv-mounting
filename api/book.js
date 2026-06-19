@@ -3,6 +3,20 @@
 // job as a negative-price custom service line item.
 const COUPONS = { BOOKONLINE: 10 };
 
+// Hard-coded after-hours fee: every job whose arrival window starts at 8 PM or
+// later (Denver local time) is charged a flat $75, no matter what. Enforced here
+// on the server so it applies even if a stale/cached widget doesn't send it.
+// Slot ids are "slot_<startEpochSec>_<endEpochSec>".
+const AFTER_HOURS_FEE = 75;
+function afterHoursFeeFor(slotId) {
+  const m = /^slot_(\d+)_/.exec(String(slotId || ''));
+  if (!m) return 0;
+  const startMs = Number(m[1]) * 1000;
+  if (!startMs) return 0;
+  const hour = Number(new Date(startMs).toLocaleString('en-US', { timeZone: 'America/Denver', hour: '2-digit', hour12: false })) % 24;
+  return hour >= 20 ? AFTER_HOURS_FEE : 0;
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin',  '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -52,6 +66,12 @@ export default async function handler(req, res) {
   }
   const selections = _order.map((sid) => ({ section_id: sid, selected_options: _grouped[sid] }));
   const services = [{ service_id, selections }];
+
+  // After-hours fee — flat $75 for any 8 PM-or-later arrival window (hard rule).
+  const afterHoursFee = afterHoursFeeFor(selectedSlot);
+  if (afterHoursFee > 0) {
+    services.push({ custom_service: { name: 'After-Hours Service Fee (8 PM)', price: afterHoursFee, duration: 0, taxable: true } });
+  }
 
   // Validate coupon — unknown codes get a clear error instead of being silently ignored.
   const couponCode = String(coupon || '').trim().toUpperCase();
