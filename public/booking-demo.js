@@ -292,7 +292,7 @@ class BookingDemo extends HTMLElement {
                 <p>Confirm we serve your area — instantly, before anything else.</p>
                 <ul class="benefits">
                   <li><span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>Real-time coverage check</li>
-                  <li><span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>All of the Denver metro</li>
+                  <li><span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>${location.pathname.includes('oklahoma-city')?'Oklahoma City and nearby areas':'All of the Denver metro'}</li>
                 </ul>
                 <div class="mini">
                   <div class="m-h">Do we service your area?</div>
@@ -422,17 +422,19 @@ class BookingDemo extends HTMLElement {
     const X = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
     if (zip) {
       zip.addEventListener('click', stop);
-      zip.addEventListener('input', (e) => {
+      zip.addEventListener('input', async (e) => {
         e.stopPropagation();
         const digits = e.target.value.replace(/\D/g, '').slice(0, 5);
         e.target.value = digits;
         const valid = /^\d{5}$/.test(digits);
-        const inArea = valid && DEMO_DENVER_ZIPS.has(digits);
+        let inArea = valid && DEMO_DENVER_ZIPS.has(digits);
+        if(valid&&location.pathname.includes('oklahoma-city')){msg.textContent='Checking your area…';const ac=new AbortController(),timer=setTimeout(()=>ac.abort(),10000);try{const r=await fetch('https://handy-andy-booking.vercel.app/api/service-area',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({business:'doms',postal_code:digits}),signal:ac.signal});if(!r.ok)throw new Error();const d=await r.json();if(typeof d.in_service_area!=='boolean')throw new Error();inArea=d.in_service_area&&!d.unstaffed;}catch(e){if(zip.value===digits)msg.textContent='Please check availability in the booking form.';return;}finally{clearTimeout(timer);}if(zip.value!==digits)return;}
+
         const notInArea = valid && !inArea;
         if (zipBox) zipBox.style.borderColor = notInArea ? '#E07A7A' : 'var(--blue)';
         if (!msg) return;
         if (inArea) msg.innerHTML = '<div class="m-ok">' + OK + 'We service your area!</div>';
-        else if (notInArea) msg.innerHTML = '<div class="m-no">' + X + 'Outside our Denver service area</div>';
+        else if (notInArea) msg.innerHTML = '<div class="m-no">' + X + 'Outside our service area</div>';
         else msg.innerHTML = '';
       });
     }
