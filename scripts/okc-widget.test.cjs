@@ -1,0 +1,14 @@
+const fs=require('fs'),vm=require('vm'),assert=require('assert/strict');
+let pending=[],calls=[];
+const ctx={URL,URLSearchParams,AbortController,setTimeout,clearTimeout,console,localStorage:{getItem:()=>'',setItem:()=>{}},window:{location:{search:'',pathname:'/book'}},document:{referrer:''},navigator:{userAgent:''},fetch:(url,options)=>{calls.push({url,options});return new Promise((resolve,reject)=>pending.push({resolve,reject}));}};
+vm.createContext(ctx);
+let src=fs.readFileSync('public/widget.js','utf8').replace(/boot\(\);\s*\}\)\(\);\s*$/,`render=()=>{};logEvent=()=>{};globalThis.audit={belowOkcMinimum,bCustomer,setTip:n=>tipAmount=n,chooseTV:()=>setQty(TV.sections[0].id,TV.sections[0].options[0].id,1),setTVPrice:n=>TV.sections[0].options[0].price=n,fetchSlots,loadPrices,applyWidgetPriceOverrides,bSlots,slotsPlaceholder,setZip:z=>customer.zip=z,setCity:c=>priceCity=c,get:()=>({slotsState,slotsByDate}),price:()=>TV.sections[0].options[0].price};})();`);
+vm.runInContext(src,ctx);const a=ctx.audit;
+const respond=d=>pending.shift().resolve({ok:true,json:async()=>d});
+(async()=>{a.setZip('73112');const r1=a.fetchSlots(),r2=a.fetchSlots();assert.equal(r1,r2);assert.equal(calls.length,1);respond({days:[{date:'2026-10-05',timeslots:[{id:'one',formatted:'11 AM – 1 PM'}]},{date:'2026-10-06',timeslots:[]}]});await r1;assert.equal(Object.keys(a.get().slotsByDate).length,1);await a.fetchSlots();assert.equal(calls.length,1);
+let req=a.fetchSlots(undefined,true);pending.shift().reject(new Error('offline'));await req;assert.equal(a.get().slotsState,'error');assert.match(a.bSlots(),/Try again/);
+req=a.fetchSlots(undefined,true);respond({days:[]});await req;assert.match(a.bSlots(),/No times are available/);
+a.setZip('73112');const old=a.fetchSlots(undefined,true);a.setZip('73099');const fresh=a.fetchSlots();respond({days:[{date:'old',timeslots:[{id:'old'}]}]});await old;respond({days:[{date:'new',timeslots:[{id:'new'}]}]});await fresh;assert.equal(Object.keys(a.get().slotsByDate)[0],'new');
+a.setCity('oklahoma_city');const p=a.applyWidgetPriceOverrides();respond({prices:{'1764781594789x318721355074764800':99}});await p;assert.equal(a.price(),99);await a.applyWidgetPriceOverrides();
+a.chooseTV();assert.equal(a.belowOkcMinimum(),true);a.setTip(100);assert.equal(a.belowOkcMinimum(),true);assert.match(a.bCustomer(),/id="btn-submit" disabled/);assert.match(a.bCustomer(),/id="c-zip" readonly/);a.setTVPrice(139);assert.equal(a.belowOkcMinimum(),false);a.setCity('other');const priceFail=a.loadPrices('other');respond({prices:{}});await assert.rejects(priceFail,/Prices unavailable/);
+console.log('PASS: request deduplication, cache, errors/retry, empty dates, stale ZIP response, OKC price override/cache, invalid prices rejected; minimum-ticket guard excludes tips; checkout ZIP protected');})().catch(e=>{console.error(e);process.exitCode=1});
